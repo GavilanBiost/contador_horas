@@ -5,7 +5,8 @@ import SwiftData
 /// y proyecto, y editar/eliminar cada entrada.
 struct TimeEntryListView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \TimeEntry.date, order: .reverse) private var entries: [TimeEntry]
+    @Query(sort: [SortDescriptor(\TimeEntry.date, order: .reverse),
+                  SortDescriptor(\TimeEntry.createdAt, order: .reverse)]) private var entries: [TimeEntry]
     @Query(sort: \Client.name) private var clients: [Client]
     @Query(sort: \Project.name) private var projects: [Project]
 
@@ -14,6 +15,17 @@ struct TimeEntryListView: View {
     @State private var filterClient: Client?
     @State private var filterProject: Project?
 
+    // MARK: – Cronómetro
+    @State private var timerRunning = false
+    @State private var timerStart: Date? = nil
+    @State private var timerBase: TimeInterval = 0
+    @State private var timerDisplayed: TimeInterval = 0
+    @State private var showingSaveTimer = false
+
+    private let timerPublisher = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    // MARK: – Datos filtrados
+
     private var filtered: [TimeEntry] {
         var result = entries
         result = HoursCalculator.filter(result, client: filterClient)
@@ -21,7 +33,6 @@ struct TimeEntryListView: View {
         return result
     }
 
-    /// Registros agrupados por día (inicio de día), ordenados desc.
     private var grouped: [(day: Date, items: [TimeEntry])] {
         let dict = Dictionary(grouping: filtered) { $0.date.startOfDay() }
         return dict.map { (day: $0.key, items: $0.value) }
@@ -47,8 +58,15 @@ struct TimeEntryListView: View {
                                     EntryRow(entry: entry)
                                         .contentShape(Rectangle())
                                         .onTapGesture { editingEntry = entry }
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                context.delete(entry)
+                                                try? context.save()
+                                            } label: {
+                                                Label("Borrar", systemImage: "trash")
+                                            }
+                                        }
                                 }
-                                .onDelete { offsets in delete(group.items, at: offsets) }
                             } header: {
                                 HStack {
                                     Text(Formatters.dayFull.string(from: group.day).capitalized)
@@ -61,6 +79,9 @@ struct TimeEntryListView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                timerBanner
+            }
             .navigationTitle("Registros")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
@@ -70,8 +91,117 @@ struct TimeEntryListView: View {
             }
             .sheet(isPresented: $showingNewEntry) { TimeEntryFormView() }
             .sheet(item: $editingEntry) { entry in TimeEntryFormView(entry: entry) }
+            .sheet(isPresented: $showingSaveTimer) {
+                TimeEntryFormView(
+                    initialHours: timerDisplayed / 3600,
+                    onSave: { resetTimer() }
+                )
+            }
+            .onReceive(timerPublisher) { _ in
+                guard timerRunning, let start = timerStart else { return }
+                timerDisplayed = timerBase + Date().timeIntervalSince(start)
+            }
         }
     }
+
+    // MARK: – Timer banner
+
+    private var timerBanner: some View {
+        HStack(spacing: 12) {
+            // Indicador / icono
+            if timerRunning {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+            } else {
+                Image(systemName: "timer")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Tiempo transcurrido o etiqueta
+            Text(timerDisplayed > 0 || timerRunning
+                 ? formatTimer(timerDisplayed)
+                 : "Cronómetro")
+                .font(timerDisplayed > 0 || timerRunning
+                      ? .system(.body, design: .monospaced).weight(.semibold)
+                      : .body)
+                .monospacedDigit()
+                .foregroundStyle(timerDisplayed == 0 && !timerRunning ? .secondary : .primary)
+                .contentTransition(.numericText())
+
+            Spacer()
+
+            // Controles según estado
+            if timerRunning {
+                Button { pauseTimer() } label: {
+                    Image(systemName: "stop.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+            } else if timerDisplayed > 0 {
+                Button { resetTimer() } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+
+                Button { startTimer() } label: {
+                    Image(systemName: "play.fill")
+                }
+                .buttonStyle(.bordered)
+
+                Button("Guardar") { showingSaveTimer = true }
+                    .buttonStyle(.borderedProminent)
+            } else {
+                Button { startTimer() } label: {
+                    Label("Iniciar", systemImage: "play.fill")
+                        .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+        .animation(.default, value: timerRunning)
+        .animation(.default, value: timerDisplayed > 0)
+    }
+
+    // MARK: – Timer actions
+
+    private func startTimer() {
+        timerStart = Date()
+        timerRunning = true
+    }
+
+    private func pauseTimer() {
+        if let start = timerStart {
+            timerBase += Date().timeIntervalSince(start)
+        }
+        timerStart = nil
+        timerRunning = false
+        timerDisplayed = timerBase
+    }
+
+    private func resetTimer() {
+        timerRunning = false
+        timerStart = nil
+        timerBase = 0
+        timerDisplayed = 0
+    }
+
+    private func formatTimer(_ interval: TimeInterval) -> String {
+        let total = Int(interval)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
+        return String(format: "%02d:%02d", m, s)
+    }
+
+    // MARK: – Filtro
 
     private var filterMenu: some View {
         Menu {
@@ -89,17 +219,15 @@ struct TimeEntryListView: View {
                 }
             }
         } label: {
-            Image(systemName: (filterClient != nil || filterProject != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Image(systemName: (filterClient != nil || filterProject != nil)
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
         }
-    }
-
-    private func delete(_ items: [TimeEntry], at offsets: IndexSet) {
-        for index in offsets { context.delete(items[index]) }
-        try? context.save()
     }
 }
 
-/// Fila individual de un registro de horas.
+// MARK: - Fila de registro
+
 private struct EntryRow: View {
     let entry: TimeEntry
 
