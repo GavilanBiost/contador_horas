@@ -41,7 +41,7 @@ struct SettingsHubView: View {
                     ShareLink(
                         item: csvExportURL,
                         preview: SharePreview(
-                            "registros_horas.csv",
+                            "\(Self.filenameDateFormatter.string(from: Date()))_horas.csv",
                             image: Image(systemName: "tablecells")
                         )
                     ) {
@@ -61,7 +61,7 @@ struct SettingsHubView: View {
                 }
 
                 Section {
-                    LabeledContent("Versión", value: "1.0")
+                    LabeledContent("Versión", value: "1.2")
                 } footer: {
                     Text("Tus datos se guardan únicamente en este dispositivo.")
                 }
@@ -73,11 +73,18 @@ struct SettingsHubView: View {
     // MARK: – CSV export
 
     private var csvExportURL: URL {
+        let datePart = Self.filenameDateFormatter.string(from: Date())
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("registros_horas.csv")
+            .appendingPathComponent("\(datePart)_horas.csv")
         try? buildCSV().write(to: url, atomically: true, encoding: .utf8)
         return url
     }
+
+    private static let filenameDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     private func buildCSV() -> String {
         let df = DateFormatter()

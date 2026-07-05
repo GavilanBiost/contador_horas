@@ -13,7 +13,6 @@ private enum Dimension: String, CaseIterable, Identifiable {
 /// Permite elegir dimensión (cliente/proyecto) y navegar entre periodos pasados.
 struct StatisticsView: View {
     @Query private var entries: [TimeEntry]
-    @Query private var settings: [AppSettings]
 
     @State private var dimension: Dimension = .client
     @State private var period: Period = .week
@@ -31,18 +30,6 @@ struct StatisticsView: View {
         case .project: return HoursCalculator.byProject(periodEntries)
         }
     }
-
-    /// Horas asignadas para el periodo (escaladas desde el total semanal).
-    private var assignedForPeriod: Double {
-        let weekly = settings.first?.totalWeeklyHours ?? 0
-        switch period {
-        case .week:  return weekly
-        case .month: return weekly * 4.345
-        case .year:  return weekly * 52
-        }
-    }
-
-    private var workedForPeriod: Double { HoursCalculator.total(periodEntries) }
 
     private var periodLabel: String {
         switch period {
@@ -86,10 +73,6 @@ struct StatisticsView: View {
                     } else {
                         ChartCard(title: "Horas por \(dimension.rawValue.lowercased())") {
                             HoursBarChart(data: breakdown)
-                        }
-
-                        ChartCard(title: "Asignadas vs. trabajadas") {
-                            AssignedVsWorkedChart(assigned: assignedForPeriod, worked: workedForPeriod)
                         }
                     }
 

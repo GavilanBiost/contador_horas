@@ -11,7 +11,6 @@ struct WeeklyHoursSettingsView: View {
     @Query(sort: \Project.name) private var projects: [Project]
 
     private var total: Double { settings.first?.totalWeeklyHours ?? 0 }
-    private var dailyTargetHours: Double { settings.first?.dailyHoursTarget ?? 0.0 }
 
     /// Suma de horas asignadas a clientes (presupuesto repartido).
     private var assignedToClients: Double { clients.reduce(0) { $0 + $1.weeklyHours } }
@@ -32,24 +31,6 @@ struct WeeklyHoursSettingsView: View {
                 }
             }
 
-            Section {
-                Stepper(value: dailyTargetBinding, in: 0...24, step: 0.5) {
-                    HStack {
-                        Text("Objetivo diario")
-                        Spacer()
-                        Text(dailyTargetHours == 0
-                            ? (total > 0 ? "Auto (\(Formatters.hours(total / 5)))" : "Auto")
-                            : Formatters.hours(dailyTargetHours))
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Objetivo diario")
-            } footer: {
-                Text("En 0, se calcula automáticamente como el total semanal ÷ 5 días.")
-            }
-
             Section("Reparto del presupuesto") {
                 LabeledContent("Asignadas a clientes", value: Formatters.hours(assignedToClients))
                 LabeledContent("Disponibles") {
@@ -66,8 +47,16 @@ struct WeeklyHoursSettingsView: View {
             if !clients.isEmpty {
                 Section("Por cliente / departamento") {
                     ForEach(clients) { client in
-                        ClientHoursRow(client: client)
+                        HStack {
+                            ColorDot(hex: client.colorHex)
+                            Text(client.name)
+                            Spacer()
+                            Text(client.weeklyHours == 0 ? "—" : Formatters.hours(client.weeklyHours))
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                } footer: {
+                    Text("Edita las horas de cada cliente desde Ajustes › Clientes.")
                 }
             }
         }
@@ -75,6 +64,7 @@ struct WeeklyHoursSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    /// Binding que escribe directamente en el AppSettings persistido.
     private var totalBinding: Binding<Double> {
         Binding(
             get: { settings.first?.totalWeeklyHours ?? 0 },
@@ -87,43 +77,6 @@ struct WeeklyHoursSettingsView: View {
                 try? context.save()
             }
         )
-    }
-
-    private var dailyTargetBinding: Binding<Double> {
-        Binding(
-            get: { settings.first?.dailyHoursTarget ?? 0.0 },
-            set: { newValue in
-                let stored: Double? = newValue == 0 ? nil : newValue
-                if let s = settings.first {
-                    s.dailyHoursTarget = stored
-                } else {
-                    context.insert(AppSettings(dailyHoursTarget: stored))
-                }
-                try? context.save()
-            }
-        )
-    }
-}
-
-private struct ClientHoursRow: View {
-    @Environment(\.modelContext) private var context
-    @Bindable var client: Client
-
-    var body: some View {
-        Stepper(value: $client.weeklyHours, in: 0...168, step: 1) {
-            HStack {
-                ColorDot(hex: client.colorHex)
-                Text(client.name)
-                    .lineLimit(1)
-                Spacer()
-                Text(client.weeklyHours == 0 ? "Sin asignar" : Formatters.hours(client.weeklyHours))
-                    .foregroundStyle(client.weeklyHours == 0 ? .tertiary : .secondary)
-                    .font(.body.weight(.semibold))
-            }
-        }
-        .onChange(of: client.weeklyHours) { _, _ in
-            try? context.save()
-        }
     }
 }
 

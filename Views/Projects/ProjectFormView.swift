@@ -1,8 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Formulario para crear o editar un proyecto.
-/// Permite asignarlo a uno o varios clientes/departamentos.
+/// Formulario para crear o editar un proyecto y asignarlo a un cliente.
 struct ProjectFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -15,7 +14,7 @@ struct ProjectFormView: View {
     @State private var descriptionText = ""
     @State private var colorHex = Palette.colors[1]
     @State private var weeklyHours: Double = 0
-    @State private var selectedClientIDs: Set<PersistentIdentifier> = []
+    @State private var selectedClient: Client?
 
     private var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -25,29 +24,16 @@ struct ProjectFormView: View {
                 Section("Nombre") {
                     TextField("Ej. Rediseño web", text: $name)
                 }
-
-                Section {
-                    if clients.isEmpty {
-                        Text("Crea primero un cliente en Ajustes.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(clients) { client in
-                            clientRow(client)
-                        }
-                    }
-                } header: {
-                    Text("Clientes / Departamentos")
-                } footer: {
-                    if !selectedClientIDs.isEmpty {
-                        Text("Seleccionados: \(selectedClientIDs.count)")
+                Section("Cliente / Departamento") {
+                    Picker("Cliente", selection: $selectedClient) {
+                        Text("Sin asignar").tag(Client?.none)
+                        ForEach(clients) { Text($0.name).tag(Client?.some($0)) }
                     }
                 }
-
                 Section("Descripción (opcional)") {
                     TextField("Detalles del proyecto…", text: $descriptionText, axis: .vertical)
                         .lineLimit(2...4)
                 }
-
                 Section("Horas semanales asignadas") {
                     Stepper(value: $weeklyHours, in: 0...168, step: 1) {
                         HStack {
@@ -58,7 +44,6 @@ struct ProjectFormView: View {
                         }
                     }
                 }
-
                 Section("Color identificativo") {
                     ColorSelector(selectedHex: $colorHex)
                         .padding(.vertical, 4)
@@ -67,9 +52,7 @@ struct ProjectFormView: View {
             .navigationTitle(project == nil ? "Nuevo proyecto" : "Editar proyecto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Guardar", action: save).disabled(!isValid)
                 }
@@ -80,50 +63,28 @@ struct ProjectFormView: View {
                     descriptionText = project.projectDescription
                     colorHex = project.colorHex
                     weeklyHours = project.weeklyHours
-                    selectedClientIDs = Set(project.clients.map { $0.persistentModelID })
-                }
-            }
-        }
-    }
-
-    private func clientRow(_ client: Client) -> some View {
-        let isSelected = selectedClientIDs.contains(client.persistentModelID)
-        return Button {
-            if isSelected {
-                selectedClientIDs.remove(client.persistentModelID)
-            } else {
-                selectedClientIDs.insert(client.persistentModelID)
-            }
-        } label: {
-            HStack(spacing: 12) {
-                ColorDot(hex: client.colorHex, size: 14)
-                Text(client.name)
-                    .foregroundStyle(.primary)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
+                    selectedClient = project.client
+                } else {
+                    selectedClient = clients.first
                 }
             }
         }
     }
 
     private func save() {
-        let selected = clients.filter { selectedClientIDs.contains($0.persistentModelID) }
         if let project {
             project.name = name
             project.projectDescription = descriptionText
             project.colorHex = colorHex
             project.weeklyHours = weeklyHours
-            project.clients = selected
+            project.client = selectedClient
         } else {
             context.insert(Project(
                 name: name,
                 projectDescription: descriptionText,
                 colorHex: colorHex,
                 weeklyHours: weeklyHours,
-                clients: selected
+                client: selectedClient
             ))
         }
         try? context.save()

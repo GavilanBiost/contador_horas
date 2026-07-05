@@ -10,6 +10,7 @@ struct ClientFormView: View {
 
     @State private var name = ""
     @State private var colorHex = Palette.defaultHex
+    @State private var weeklyHours: Double = 0
 
     private var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -18,6 +19,16 @@ struct ClientFormView: View {
             Form {
                 Section("Nombre") {
                     TextField("Ej. Cliente Acme / Marketing", text: $name)
+                }
+                Section("Horas semanales asignadas") {
+                    Stepper(value: $weeklyHours, in: 0...168, step: 1) {
+                        HStack {
+                            Text("Horas/semana")
+                            Spacer()
+                            Text(weeklyHours == 0 ? "Sin asignar" : Formatters.hours(weeklyHours))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 Section("Color identificativo") {
                     ColorSelector(selectedHex: $colorHex)
@@ -36,6 +47,7 @@ struct ClientFormView: View {
                 if let client {
                     name = client.name
                     colorHex = client.colorHex
+                    weeklyHours = client.weeklyHours
                 }
             }
         }
@@ -45,8 +57,9 @@ struct ClientFormView: View {
         if let client {
             client.name = name
             client.colorHex = colorHex
+            client.weeklyHours = weeklyHours
         } else {
-            context.insert(Client(name: name, colorHex: colorHex))
+            context.insert(Client(name: name, colorHex: colorHex, weeklyHours: weeklyHours))
         }
         try? context.save()
         dismiss()

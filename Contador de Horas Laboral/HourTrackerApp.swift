@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(GoogleSignIn)
+import GoogleSignIn
+#endif
 
 // MARK: - TimerManager
 
@@ -94,6 +97,7 @@ final class TimerManager {
 @main
 struct HourTrackerApp: App {
     let timerManager = TimerManager()
+    let calendarService = GoogleCalendarService()
 
     let container: ModelContainer = {
         let schema = Schema([Client.self, Project.self, TimeEntry.self, AppSettings.self])
@@ -119,8 +123,14 @@ struct HourTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .onOpenURL { url in
+#if canImport(GoogleSignIn)
+                    GIDSignIn.sharedInstance.handle(url)
+#endif
+                }
         }
         .modelContainer(container)
         .environment(timerManager)
+        .environment(calendarService)
     }
 }

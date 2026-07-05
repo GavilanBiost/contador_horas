@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific files (private)
+xcuserdata/
+**/xcuserdata/
+*.xcuserstate
+
+# Xcode workspace user data (private)
+*.xcworkspace/xcuserdata/
+
+# Xcode scheme management (often user-specific)
+*.xcodeproj/xcuserdata/
+
+# Build artifacts
+build/
+DerivedData/
+
+# Swift Package Manager build/cache
+.build/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Fastlane screenshots/test outputs (if used)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# CocoaPods (uncomment if your project uses Pods and you do not commit them)
+# Pods/

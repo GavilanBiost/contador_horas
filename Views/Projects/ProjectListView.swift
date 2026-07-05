@@ -30,9 +30,7 @@ struct ProjectListView: View {
                                 ColorDot(hex: project.colorHex, size: 16)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(project.name).foregroundStyle(.primary)
-                                    Text(project.clients.isEmpty
-                                         ? "Sin cliente"
-                                         : project.clients.map(\.name).sorted().joined(separator: ", "))
+                                    Text(project.client?.name ?? "Sin cliente")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()

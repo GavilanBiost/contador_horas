@@ -1,6 +1,7 @@
 import Foundation
 #if canImport(GoogleSignIn)
 import GoogleSignIn
+import UIKit
 #endif
 
 // MARK: - Modelo de evento (siempre disponible)
@@ -43,14 +44,13 @@ final class GoogleCalendarService {
     private(set) var events: [CalendarEvent] = []
     private(set) var errorMessage: String?
 
-    /// True si GIDClientID está configurado en Info.plist.
-    private var isConfigured: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String != nil
-    }
+#if canImport(GoogleSignIn)
+    private static let clientID = "798645956367-vjo9e08hchh790kd494rgs27cjcj2dj1.apps.googleusercontent.com"
+#endif
 
     init() {
 #if canImport(GoogleSignIn)
-        guard isConfigured else { return }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: Self.clientID)
         GIDSignIn.sharedInstance.restorePreviousSignIn { [weak self] user, _ in
             DispatchQueue.main.async { self?.isSignedIn = user != nil }
         }
@@ -62,18 +62,15 @@ final class GoogleCalendarService {
     @MainActor
     func signIn() async {
 #if canImport(GoogleSignIn)
-        guard isConfigured else {
-            errorMessage = "Falta GIDClientID en Info.plist. Revisa la configuración."
-            return
-        }
         guard let vc = rootViewController() else { return }
         errorMessage = nil
         do {
-            let result = try await GIDSignIn.sharedInstance.signIn(
+            _ = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: vc,
+                hint: nil,
                 additionalScopes: ["https://www.googleapis.com/auth/calendar.readonly"]
             )
-            isSignedIn = result.user != nil
+            isSignedIn = true
         } catch {
             let nsErr = error as NSError
             if nsErr.domain != "com.google.GIDSignIn" || nsErr.code != -5 {
@@ -193,6 +190,7 @@ final class GoogleCalendarService {
         }
     }
 
+#if canImport(GoogleSignIn)
     private func rootViewController() -> UIViewController? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -200,4 +198,5 @@ final class GoogleCalendarService {
             .first { $0.isKeyWindow }?
             .rootViewController
     }
+#endif
 }
