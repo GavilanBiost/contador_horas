@@ -5,6 +5,8 @@ import SwiftData
 /// y proyecto, y editar/eliminar cada entrada.
 struct TimeEntryListView: View {
     @Environment(\.modelContext) private var context
+    @Environment(TimerManager.self) private var timerManager
+
     @Query(sort: [SortDescriptor(\TimeEntry.date, order: .reverse),
                   SortDescriptor(\TimeEntry.createdAt, order: .reverse)]) private var entries: [TimeEntry]
     @Query(sort: \Client.name) private var clients: [Client]
@@ -15,19 +17,16 @@ struct TimeEntryListView: View {
     @State private var filterClient: Client?
     @State private var filterProject: Project?
 
-    // MARK: – Cronómetro
-    @State private var timerRunning = false
-    @State private var timerStart: Date? = nil
-    @State private var timerBase: TimeInterval = 0
-    @State private var timerDisplayed: TimeInterval = 0
-    @State private var showingSaveTimer = false
-
-    private let timerPublisher = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     // MARK: – Datos filtrados
 
+    private var twoWeekInterval: DateInterval {
+        let thisWeek = Date().interval(of: .week)
+        let prevWeek = Date().adding(-1, .week).interval(of: .week)
+        return DateInterval(start: prevWeek.start, end: thisWeek.end)
+    }
+
     private var filtered: [TimeEntry] {
-        var result = entries
+        var result = HoursCalculator.entries(entries, in: twoWeekInterval)
         result = HoursCalculator.filter(result, client: filterClient)
         result = HoursCalculator.filter(result, project: filterProject)
         return result
@@ -40,6 +39,7 @@ struct TimeEntryListView: View {
     }
 
     var body: some View {
+        @Bindable var manager = timerManager
         NavigationStack {
             Group {
                 if filtered.isEmpty {
@@ -91,15 +91,11 @@ struct TimeEntryListView: View {
             }
             .sheet(isPresented: $showingNewEntry) { TimeEntryFormView() }
             .sheet(item: $editingEntry) { entry in TimeEntryFormView(entry: entry) }
-            .sheet(isPresented: $showingSaveTimer) {
+            .sheet(isPresented: $manager.showingSaveTimer) {
                 TimeEntryFormView(
-                    initialHours: timerDisplayed / 3600,
-                    onSave: { resetTimer() }
+                    initialHours: timerManager.timerDisplayed / 3600,
+                    onSave: { timerManager.resetTimer() }
                 )
-            }
-            .onReceive(timerPublisher) { _ in
-                guard timerRunning, let start = timerStart else { return }
-                timerDisplayed = timerBase + Date().timeIntervalSince(start)
             }
         }
     }
@@ -108,8 +104,7 @@ struct TimeEntryListView: View {
 
     private var timerBanner: some View {
         HStack(spacing: 12) {
-            // Indicador / icono
-            if timerRunning {
+            if timerManager.timerRunning {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 8, height: 8)
@@ -119,42 +114,40 @@ struct TimeEntryListView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Tiempo transcurrido o etiqueta
-            Text(timerDisplayed > 0 || timerRunning
-                 ? formatTimer(timerDisplayed)
+            Text(timerManager.timerDisplayed > 0 || timerManager.timerRunning
+                 ? timerManager.formatTimer()
                  : "Cronómetro")
-                .font(timerDisplayed > 0 || timerRunning
+                .font(timerManager.timerDisplayed > 0 || timerManager.timerRunning
                       ? .system(.body, design: .monospaced).weight(.semibold)
                       : .body)
                 .monospacedDigit()
-                .foregroundStyle(timerDisplayed == 0 && !timerRunning ? .secondary : .primary)
+                .foregroundStyle(timerManager.timerDisplayed == 0 && !timerManager.timerRunning ? .secondary : .primary)
                 .contentTransition(.numericText())
 
             Spacer()
 
-            // Controles según estado
-            if timerRunning {
-                Button { pauseTimer() } label: {
+            if timerManager.timerRunning {
+                Button { timerManager.pauseTimer() } label: {
                     Image(systemName: "stop.fill")
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
-            } else if timerDisplayed > 0 {
-                Button { resetTimer() } label: {
+            } else if timerManager.timerDisplayed > 0 {
+                Button { timerManager.resetTimer() } label: {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.bordered)
                 .tint(.secondary)
 
-                Button { startTimer() } label: {
+                Button { timerManager.startTimer() } label: {
                     Image(systemName: "play.fill")
                 }
                 .buttonStyle(.bordered)
 
-                Button("Guardar") { showingSaveTimer = true }
+                Button("Guardar") { timerManager.showingSaveTimer = true }
                     .buttonStyle(.borderedProminent)
             } else {
-                Button { startTimer() } label: {
+                Button { timerManager.startTimer() } label: {
                     Label("Iniciar", systemImage: "play.fill")
                         .font(.subheadline.weight(.medium))
                 }
@@ -165,40 +158,8 @@ struct TimeEntryListView: View {
         .padding(.vertical, 10)
         .background(.bar)
         .overlay(alignment: .bottom) { Divider() }
-        .animation(.default, value: timerRunning)
-        .animation(.default, value: timerDisplayed > 0)
-    }
-
-    // MARK: – Timer actions
-
-    private func startTimer() {
-        timerStart = Date()
-        timerRunning = true
-    }
-
-    private func pauseTimer() {
-        if let start = timerStart {
-            timerBase += Date().timeIntervalSince(start)
-        }
-        timerStart = nil
-        timerRunning = false
-        timerDisplayed = timerBase
-    }
-
-    private func resetTimer() {
-        timerRunning = false
-        timerStart = nil
-        timerBase = 0
-        timerDisplayed = 0
-    }
-
-    private func formatTimer(_ interval: TimeInterval) -> String {
-        let total = Int(interval)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
-        return String(format: "%02d:%02d", m, s)
+        .animation(.default, value: timerManager.timerRunning)
+        .animation(.default, value: timerManager.timerDisplayed > 0)
     }
 
     // MARK: – Filtro
@@ -260,4 +221,5 @@ private struct EntryRow: View {
 #Preview {
     TimeEntryListView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(TimerManager())
 }
