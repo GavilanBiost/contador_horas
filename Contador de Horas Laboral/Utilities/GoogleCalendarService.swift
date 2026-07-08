@@ -108,18 +108,9 @@ final class GoogleCalendarService {
 
     @MainActor
     func requestWriteAccess() async {
-#if canImport(GoogleSignIn)
-        guard let vc = rootViewController() else { return }
-        errorMessage = nil
-        do {
-            _ = try await GIDSignIn.sharedInstance.addScopes(
-                [Self.calendarEventsScope],
-                presenting: vc
-            )
-        } catch {
-            errorMessage = "No se pudo ampliar los permisos."
-        }
-#endif
+        // Volver a lanzar el flujo de login con el scope de escritura;
+        // Google OAuth solo pedirá los permisos que aún no estén concedidos.
+        await signIn()
     }
 
     func signOut() {

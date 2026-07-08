@@ -1,20 +1,16 @@
 import SwiftUI
 import SwiftData
 
-/// Formulario para crear o editar un registro de horas.
-/// Si se le pasa un `entry`, funciona en modo edición.
 struct TimeEntryFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(LanguageManager.self) private var lang
 
     @Query(sort: \Client.name) private var clients: [Client]
     @Query(sort: \Project.name) private var projects: [Project]
 
-    /// Registro a editar (nil = creación).
     var entry: TimeEntry?
-    /// Horas pre-rellenadas desde el cronómetro (solo en creación).
     var initialHours: Double? = nil
-    /// Llamado tras guardar con éxito (usado para resetear el cronómetro).
     var onSave: (() -> Void)? = nil
 
     @State private var date: Date = .now
@@ -25,7 +21,6 @@ struct TimeEntryFormView: View {
     @State private var selectedProject: Project?
     @State private var showingDeleteConfirmation = false
 
-    /// Proyectos filtrados por el cliente seleccionado (muchos-a-muchos).
     private var availableProjects: [Project] {
         guard let selectedClient else { return projects }
         return projects.filter { project in
@@ -44,12 +39,11 @@ struct TimeEntryFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Fecha") {
-                    DatePicker("Día", selection: $date, displayedComponents: .date)
-                        .environment(\.locale, Locale(identifier: "es_ES"))
+                Section(lang["form.date"]) {
+                    DatePicker(lang["form.day"], selection: $date, displayedComponents: .date)
                 }
 
-                Section("Horas trabajadas") {
+                Section(lang["form.hours"]) {
                     HStack(spacing: 12) {
                         Button {
                             let total = max(0, (Int(hoursText) ?? 0) * 60 + (Int(minutesText) ?? 0) - 1)
@@ -114,19 +108,18 @@ struct TimeEntryFormView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section("Cliente / Departamento") {
+                Section(lang["form.client"]) {
                     if clients.isEmpty {
-                        Text("Crea primero un cliente en Ajustes.")
+                        Text(lang["form.create_client"])
                             .foregroundStyle(.secondary)
                     } else {
-                        Picker("Cliente", selection: $selectedClient) {
-                            Text("Sin asignar").tag(Client?.none)
+                        Picker(lang["form.client_picker"], selection: $selectedClient) {
+                            Text(lang["form.no_client"]).tag(Client?.none)
                             ForEach(clients) { client in
                                 Text(client.name).tag(Client?.some(client))
                             }
                         }
                         .onChange(of: selectedClient) { _, newClient in
-                            // Si el proyecto ya no tiene al nuevo cliente, se limpia.
                             if let p = selectedProject, let client = newClient {
                                 let stillValid = p.clients.contains { $0.persistentModelID == client.persistentModelID }
                                 if !stillValid { selectedProject = nil }
@@ -135,17 +128,17 @@ struct TimeEntryFormView: View {
                     }
                 }
 
-                Section("Proyecto") {
-                    Picker("Proyecto", selection: $selectedProject) {
-                        Text("Sin proyecto").tag(Project?.none)
+                Section(lang["form.project"]) {
+                    Picker(lang["form.project_picker"], selection: $selectedProject) {
+                        Text(lang["form.no_project"]).tag(Project?.none)
                         ForEach(availableProjects) { project in
                             Text(project.name).tag(Project?.some(project))
                         }
                     }
                 }
 
-                Section("Comentario (opcional)") {
-                    TextField("Notas sobre el trabajo…", text: $comment, axis: .vertical)
+                Section(lang["form.comment"]) {
+                    TextField(lang["form.comment_hint"], text: $comment, axis: .vertical)
                         .lineLimit(2...4)
                 }
 
@@ -156,39 +149,39 @@ struct TimeEntryFormView: View {
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("Eliminar registro")
+                                Text(lang["form.delete_entry"])
                                 Spacer()
                             }
                         }
                     }
                 }
             }
-            .navigationTitle(entry == nil ? "Nuevo registro" : "Editar registro")
+            .navigationTitle(entry == nil ? lang["form.new"] : lang["form.edit"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button(lang["form.cancel"]) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar", action: save).disabled(!isValid)
+                    Button(lang["form.save"], action: save).disabled(!isValid)
                 }
             }
             .onAppear(perform: loadIfEditing)
             .confirmationDialog(
-                "Eliminar registro",
+                lang["form.delete_entry"],
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("Eliminar", role: .destructive) {
+                Button(lang["form.delete"], role: .destructive) {
                     if let entry {
                         context.delete(entry)
                         try? context.save()
                     }
                     dismiss()
                 }
-                Button("Cancelar", role: .cancel) { }
+                Button(lang["form.cancel"], role: .cancel) { }
             } message: {
-                Text("Esta acción no se puede deshacer.")
+                Text(lang["form.irreversible"])
             }
         }
     }
@@ -235,4 +228,5 @@ struct TimeEntryFormView: View {
 #Preview {
     TimeEntryFormView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

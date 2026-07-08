@@ -98,6 +98,7 @@ final class TimerManager {
 struct HourTrackerApp: App {
     let timerManager = TimerManager()
     let calendarService = GoogleCalendarService()
+    let languageManager = LanguageManager()
 
     let container: ModelContainer = {
         let schema = Schema([Client.self, Project.self, TimeEntry.self, AppSettings.self])
@@ -132,5 +133,6 @@ struct HourTrackerApp: App {
         .modelContainer(container)
         .environment(timerManager)
         .environment(calendarService)
+        .environment(languageManager)
     }
 }
