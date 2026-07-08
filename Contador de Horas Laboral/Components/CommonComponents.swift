@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Estado vacío reutilizable para listas sin contenido.
 struct EmptyStateView: View {
     let systemImage: String
     let title: String
@@ -22,7 +21,6 @@ struct EmptyStateView: View {
     }
 }
 
-/// Punto de color reutilizable para identificar clientes/proyectos.
 struct ColorDot: View {
     let hex: String
     var size: CGFloat = 12
@@ -33,12 +31,11 @@ struct ColorDot: View {
     }
 }
 
-/// Fila de progreso por cliente con barra relativa al presupuesto semanal asignado.
-/// Si el cliente no tiene presupuesto, la barra escala respecto al cliente con más horas.
 struct ClientProgressRow: View {
     let item: HoursBreakdown
     let assigned: Double
     let maxHours: Double
+    @Environment(LanguageManager.self) private var lang
 
     private var progress: HoursCalculator.Progress {
         HoursCalculator.progress(assigned: assigned, worked: item.hours)
@@ -90,7 +87,7 @@ struct ClientProgressRow: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.red)
                     } else {
-                        Text("Faltan \(Formatters.hours(progress.remaining))")
+                        Text(lang["common.missing_format"].replacingOccurrences(of: "{0}", with: Formatters.hours(progress.remaining)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -101,8 +98,6 @@ struct ClientProgressRow: View {
     }
 }
 
-/// Fila de desglose con punto de color, nombre, mini-barra y horas.
-/// Reutilizada en dashboard, vista semanal y estadísticas.
 struct BreakdownRow: View {
     let item: HoursBreakdown
     let maxHours: Double

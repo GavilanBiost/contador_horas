@@ -2,23 +2,18 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// Dimensión de análisis: por cliente o por proyecto.
-private enum Dimension: String, CaseIterable, Identifiable {
-    case client = "Cliente"
-    case project = "Proyecto"
-    var id: String { rawValue }
+private enum Dimension: CaseIterable, Identifiable {
+    case client, project
+    var id: Self { self }
 }
 
-/// Pantalla de gráficos y estadísticas.
-/// Permite elegir dimensión (cliente/proyecto) y navegar entre periodos pasados.
 struct StatisticsView: View {
     @Query private var entries: [TimeEntry]
+    @Environment(LanguageManager.self) private var lang
 
     @State private var dimension: Dimension = .client
     @State private var period: Period = .week
     @State private var periodOffset = 0
-
-    // MARK: Datos derivados
 
     private var referenceDate: Date { Date().adding(periodOffset, period) }
     private var interval: DateInterval { referenceDate.interval(of: period) }
@@ -31,6 +26,13 @@ struct StatisticsView: View {
         }
     }
 
+    private var dimensionLabel: String {
+        switch dimension {
+        case .client:  return lang["stats.client"]
+        case .project: return lang["stats.project"]
+        }
+    }
+
     private var periodLabel: String {
         switch period {
         case .week:  return interval.shortRangeLabel
@@ -39,7 +41,6 @@ struct StatisticsView: View {
         }
     }
 
-    /// Evolución: últimos N periodos desde hoy (independiente del offset).
     private var evolution: [EvolutionPoint] {
         let count: Int = switch period {
         case .week: 8
@@ -53,8 +54,10 @@ struct StatisticsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    Picker("Periodo", selection: $period) {
-                        ForEach(Period.allCases) { Text($0.rawValue).tag($0) }
+                    Picker(lang["period.picker"], selection: $period) {
+                        Text(lang["period.week"]).tag(Period.week)
+                        Text(lang["period.month"]).tag(Period.month)
+                        Text(lang["period.year"]).tag(Period.year)
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: period) { _, _ in
@@ -66,41 +69,42 @@ struct StatisticsView: View {
                     if periodEntries.isEmpty {
                         EmptyStateView(
                             systemImage: "chart.pie",
-                            title: "Sin datos",
-                            message: "No hay registros en este periodo."
+                            title: lang["stats.no_data"],
+                            message: lang["stats.no_data_message"]
                         )
                         .frame(height: 260)
                     } else {
-                        ChartCard(title: "Horas por \(dimension.rawValue.lowercased())") {
+                        ChartCard(title: "\(lang["stats.hours_by"]) \(dimensionLabel.lowercased())") {
                             HoursBarChart(data: breakdown)
                         }
                     }
 
-                    ChartCard(title: "Evolución de horas trabajadas") {
+                    ChartCard(title: lang["stats.evolution"]) {
                         EvolutionChart(points: evolution)
                     }
                 }
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Gráficos")
+            .navigationTitle(lang["tab.charts"])
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         ForEach(Dimension.allCases) { dim in
+                            let label = dim == .client ? lang["stats.client"] : lang["stats.project"]
                             Button {
                                 dimension = dim
                             } label: {
                                 if dimension == dim {
-                                    Label(dim.rawValue, systemImage: "checkmark")
+                                    Label(label, systemImage: "checkmark")
                                 } else {
-                                    Text(dim.rawValue)
+                                    Text(label)
                                 }
                             }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(dimension.rawValue)
+                            Text(dimensionLabel)
                                 .font(.subheadline)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.caption.weight(.semibold))
@@ -111,8 +115,6 @@ struct StatisticsView: View {
         }
     }
 
-    // MARK: – Period navigator
-
     private var periodNavigator: some View {
         HStack {
             Button { withAnimation { periodOffset -= 1 } } label: {
@@ -122,10 +124,10 @@ struct StatisticsView: View {
             VStack(spacing: 2) {
                 Text(periodLabel).font(.headline)
                 if periodOffset < 0 {
-                    Button("Periodo actual") { withAnimation { periodOffset = 0 } }
+                    Button(lang["stats.current_period"]) { withAnimation { periodOffset = 0 } }
                         .font(.caption)
                 } else {
-                    Text("Periodo actual")
+                    Text(lang["stats.current_period"])
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -143,4 +145,5 @@ struct StatisticsView: View {
 #Preview {
     StatisticsView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

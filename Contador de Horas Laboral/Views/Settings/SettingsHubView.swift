@@ -2,42 +2,49 @@ import SwiftUI
 import SwiftData
 import StoreKit
 
-/// Pantalla de ajustes: punto de entrada a la gestión de clientes,
-/// proyectos y configuración de horas semanales.
 struct SettingsHubView: View {
     @Query private var clients: [Client]
     @Query private var projects: [Project]
     @Query(sort: [SortDescriptor(\TimeEntry.date, order: .reverse)]) private var allEntries: [TimeEntry]
 
     @Environment(\.requestReview) private var requestReview
+    @Environment(LanguageManager.self) private var lang
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Organización") {
+                Section(lang["settings.organization"]) {
                     NavigationLink {
                         ClientListView()
                     } label: {
-                        Label("Clientes / Departamentos", systemImage: "person.2.fill")
+                        Label(lang["settings.clients"], systemImage: "person.2.fill")
                             .badge(clients.count)
                     }
                     NavigationLink {
                         ProjectListView()
                     } label: {
-                        Label("Proyectos", systemImage: "folder.fill")
+                        Label(lang["settings.projects"], systemImage: "folder.fill")
                             .badge(projects.count)
                     }
                 }
 
-                Section("Horas") {
+                Section(lang["settings.hours_section"]) {
                     NavigationLink {
                         WeeklyHoursSettingsView()
                     } label: {
-                        Label("Horas semanales", systemImage: "calendar.badge.clock")
+                        Label(lang["settings.weekly_hours"], systemImage: "calendar.badge.clock")
                     }
                 }
 
-                Section("Datos") {
+                Section(lang["settings.language_section"]) {
+                    NavigationLink {
+                        LanguageSettingsView()
+                    } label: {
+                        Label(lang["settings.language"], systemImage: "globe")
+                    }
+                }
+
+                Section(lang["settings.data"]) {
                     ShareLink(
                         item: csvExportURL,
                         preview: SharePreview(
@@ -45,28 +52,28 @@ struct SettingsHubView: View {
                             image: Image(systemName: "tablecells")
                         )
                     ) {
-                        Label("Exportar registros (CSV)", systemImage: "arrow.up.doc.fill")
+                        Label(lang["settings.export"], systemImage: "arrow.up.doc.fill")
                     }
                 }
 
-                Section("Soporte") {
+                Section(lang["settings.support"]) {
                     Button {
                         requestReview()
                     } label: {
-                        Label("Valorar la app", systemImage: "star.fill")
+                        Label(lang["settings.rate"], systemImage: "star.fill")
                     }
                     Link(destination: URL(string: "mailto:?subject=Sugerencia%20para%20Contador%20de%20Horas")!) {
-                        Label("Enviar sugerencia", systemImage: "envelope.fill")
+                        Label(lang["settings.suggest"], systemImage: "envelope.fill")
                     }
                 }
 
                 Section {
-                    LabeledContent("Versión", value: "1.2")
+                    LabeledContent(lang["settings.version"], value: "1.2")
                 } footer: {
-                    Text("Tus datos se guardan únicamente en este dispositivo.")
+                    Text(lang["settings.privacy"])
                 }
             }
-            .navigationTitle("Ajustes")
+            .navigationTitle(lang["tab.settings"])
         }
     }
 
@@ -103,7 +110,6 @@ struct SettingsHubView: View {
         return lines.joined(separator: "\n")
     }
 
-    /// Envuelve el campo en comillas dobles y escapa comillas internas.
     private func csvEscape(_ value: String) -> String {
         let escaped = value
             .replacingOccurrences(of: "\"", with: "\"\"")
@@ -115,4 +121,5 @@ struct SettingsHubView: View {
 #Preview {
     SettingsHubView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

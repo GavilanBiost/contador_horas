@@ -1,11 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Formulario para crear o editar un proyecto.
-/// Permite asignarlo a uno o varios clientes/departamentos.
 struct ProjectFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(LanguageManager.self) private var lang
 
     @Query(sort: \Client.name) private var clients: [Client]
 
@@ -22,13 +21,13 @@ struct ProjectFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Nombre") {
-                    TextField("Ej. Rediseño web", text: $name)
+                Section(lang["projects.name"]) {
+                    TextField(lang["projects.placeholder"], text: $name)
                 }
 
                 Section {
                     if clients.isEmpty {
-                        Text("Crea primero un cliente en Ajustes.")
+                        Text(lang["projects.create_client_first"])
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(clients) { client in
@@ -36,42 +35,42 @@ struct ProjectFormView: View {
                         }
                     }
                 } header: {
-                    Text("Clientes / Departamentos")
+                    Text(lang["projects.clients_section"])
                 } footer: {
                     if !selectedClientIDs.isEmpty {
-                        Text("Seleccionados: \(selectedClientIDs.count)")
+                        Text("\(lang["projects.selected"]) \(selectedClientIDs.count)")
                     }
                 }
 
-                Section("Descripción (opcional)") {
-                    TextField("Detalles del proyecto…", text: $descriptionText, axis: .vertical)
+                Section(lang["projects.description"]) {
+                    TextField(lang["projects.description_hint"], text: $descriptionText, axis: .vertical)
                         .lineLimit(2...4)
                 }
 
-                Section("Horas semanales asignadas") {
+                Section(lang["projects.weekly_hours"]) {
                     Stepper(value: $weeklyHours, in: 0...168, step: 1) {
                         HStack {
-                            Text("Horas/semana")
+                            Text(lang["projects.per_week"])
                             Spacer()
-                            Text(weeklyHours == 0 ? "Sin asignar" : Formatters.hours(weeklyHours))
+                            Text(weeklyHours == 0 ? lang["whours.no_assigned"] : Formatters.hours(weeklyHours))
                                 .foregroundStyle(.secondary)
                         }
                     }
                 }
 
-                Section("Color identificativo") {
+                Section(lang["projects.color"]) {
                     ColorSelector(selectedHex: $colorHex)
                         .padding(.vertical, 4)
                 }
             }
-            .navigationTitle(project == nil ? "Nuevo proyecto" : "Editar proyecto")
+            .navigationTitle(project == nil ? lang["projects.new"] : lang["projects.edit"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button(lang["projects.cancel"]) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar", action: save).disabled(!isValid)
+                    Button(lang["projects.save"], action: save).disabled(!isValid)
                 }
             }
             .onAppear {
@@ -134,4 +133,5 @@ struct ProjectFormView: View {
 #Preview {
     ProjectFormView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

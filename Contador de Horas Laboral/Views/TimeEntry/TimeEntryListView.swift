@@ -1,11 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Historial de registros. Agrupa por día, permite filtrar por cliente
-/// y proyecto, y editar/eliminar cada entrada.
 struct TimeEntryListView: View {
     @Environment(\.modelContext) private var context
     @Environment(TimerManager.self) private var timerManager
+    @Environment(LanguageManager.self) private var lang
 
     @Query(sort: [SortDescriptor(\TimeEntry.date, order: .reverse),
                   SortDescriptor(\TimeEntry.createdAt, order: .reverse)]) private var entries: [TimeEntry]
@@ -16,8 +15,6 @@ struct TimeEntryListView: View {
     @State private var editingEntry: TimeEntry?
     @State private var filterClient: Client?
     @State private var filterProject: Project?
-
-    // MARK: – Datos filtrados
 
     private var twoWeekInterval: DateInterval {
         let thisWeek = Date().interval(of: .week)
@@ -45,9 +42,9 @@ struct TimeEntryListView: View {
                 if filtered.isEmpty {
                     EmptyStateView(
                         systemImage: "clock.badge.questionmark",
-                        title: "Sin registros",
-                        message: "Empieza registrando las horas que trabajas cada día.",
-                        actionTitle: "Registrar horas",
+                        title: lang["entries.empty_title"],
+                        message: lang["entries.empty_message"],
+                        actionTitle: lang["entries.record"],
                         action: { showingNewEntry = true }
                     )
                 } else {
@@ -63,7 +60,7 @@ struct TimeEntryListView: View {
                                                 context.delete(entry)
                                                 try? context.save()
                                             } label: {
-                                                Label("Borrar", systemImage: "trash")
+                                                Label(lang["entries.delete"], systemImage: "trash")
                                             }
                                         }
                                 }
@@ -82,7 +79,7 @@ struct TimeEntryListView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 timerBanner
             }
-            .navigationTitle("Registros")
+            .navigationTitle(lang["tab.records"])
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -116,7 +113,7 @@ struct TimeEntryListView: View {
 
             Text(timerManager.timerDisplayed > 0 || timerManager.timerRunning
                  ? timerManager.formatTimer()
-                 : "Cronómetro")
+                 : lang["dash.timer"])
                 .font(timerManager.timerDisplayed > 0 || timerManager.timerRunning
                       ? .system(.body, design: .monospaced).weight(.semibold)
                       : .body)
@@ -144,11 +141,11 @@ struct TimeEntryListView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Guardar") { timerManager.showingSaveTimer = true }
+                Button(lang["dash.save"]) { timerManager.showingSaveTimer = true }
                     .buttonStyle(.borderedProminent)
             } else {
                 Button { timerManager.startTimer() } label: {
-                    Label("Iniciar", systemImage: "play.fill")
+                    Label(lang["dash.start"], systemImage: "play.fill")
                         .font(.subheadline.weight(.medium))
                 }
                 .buttonStyle(.borderedProminent)
@@ -166,16 +163,16 @@ struct TimeEntryListView: View {
 
     private var filterMenu: some View {
         Menu {
-            Picker("Cliente", selection: $filterClient) {
-                Text("Todos los clientes").tag(Client?.none)
+            Picker(lang["form.client_picker"], selection: $filterClient) {
+                Text(lang["entries.all_clients"]).tag(Client?.none)
                 ForEach(clients) { Text($0.name).tag(Client?.some($0)) }
             }
-            Picker("Proyecto", selection: $filterProject) {
-                Text("Todos los proyectos").tag(Project?.none)
+            Picker(lang["form.project_picker"], selection: $filterProject) {
+                Text(lang["entries.all_projects"]).tag(Project?.none)
                 ForEach(projects) { Text($0.name).tag(Project?.some($0)) }
             }
             if filterClient != nil || filterProject != nil {
-                Button("Quitar filtros", role: .destructive) {
+                Button(lang["entries.clear_filters"], role: .destructive) {
                     filterClient = nil; filterProject = nil
                 }
             }
@@ -191,12 +188,13 @@ struct TimeEntryListView: View {
 
 private struct EntryRow: View {
     let entry: TimeEntry
+    @Environment(LanguageManager.self) private var lang
 
     var body: some View {
         HStack(spacing: 12) {
             ColorDot(hex: entry.project?.colorHex ?? entry.client?.colorHex ?? "#8E8E93", size: 14)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.project?.name ?? entry.client?.name ?? "Sin asignar")
+                Text(entry.project?.name ?? entry.client?.name ?? lang["entries.unassigned"])
                     .font(.body)
                 HStack(spacing: 6) {
                     if let client = entry.client {
@@ -222,4 +220,5 @@ private struct EntryRow: View {
     TimeEntryListView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
         .environment(TimerManager())
+        .environment(LanguageManager())
 }

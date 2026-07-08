@@ -15,7 +15,7 @@ struct CalendarEvent: Identifiable {
     let colorHex: String
 }
 
-// MARK: - Decodable internos (respuesta de la API REST)
+// MARK: - Tipos internos Decodable
 
 private struct GCListResponse: Decodable {
     let items: [GCItem]?
@@ -34,6 +34,19 @@ private struct GCDateTime: Decodable {
     let date: String?
 }
 
+// MARK: - Tipo interno Encodable (crear / editar)
+
+private struct GCEventBody: Encodable {
+    struct EventDateTime: Encodable {
+        var dateTime: String?
+        var date: String?
+        var timeZone: String?
+    }
+    var summary: String
+    var start: EventDateTime
+    var end: EventDateTime
+}
+
 // MARK: - Servicio
 
 @Observable
@@ -43,6 +56,17 @@ final class GoogleCalendarService {
     private(set) var isLoading   = false
     private(set) var events: [CalendarEvent] = []
     private(set) var errorMessage: String?
+
+    private static let calendarEventsScope = "https://www.googleapis.com/auth/calendar.events"
+
+    var hasWriteAccess: Bool {
+#if canImport(GoogleSignIn)
+        return GIDSignIn.sharedInstance.currentUser?.grantedScopes?
+            .contains(Self.calendarEventsScope) ?? false
+#else
+        return false
+#endif
+    }
 
 #if canImport(GoogleSignIn)
     private static let clientID = "798645956367-vjo9e08hchh790kd494rgs27cjcj2dj1.apps.googleusercontent.com"
@@ -68,7 +92,7 @@ final class GoogleCalendarService {
             _ = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: vc,
                 hint: nil,
-                additionalScopes: ["https://www.googleapis.com/auth/calendar.readonly"]
+                additionalScopes: [Self.calendarEventsScope]
             )
             isSignedIn = true
         } catch {
@@ -82,6 +106,22 @@ final class GoogleCalendarService {
 #endif
     }
 
+    @MainActor
+    func requestWriteAccess() async {
+#if canImport(GoogleSignIn)
+        guard let vc = rootViewController() else { return }
+        errorMessage = nil
+        do {
+            _ = try await GIDSignIn.sharedInstance.addScopes(
+                [Self.calendarEventsScope],
+                presenting: vc
+            )
+        } catch {
+            errorMessage = "No se pudo ampliar los permisos."
+        }
+#endif
+    }
+
     func signOut() {
 #if canImport(GoogleSignIn)
         GIDSignIn.sharedInstance.signOut()
@@ -91,7 +131,7 @@ final class GoogleCalendarService {
         errorMessage = nil
     }
 
-    // MARK: – Eventos
+    // MARK: – Lectura
 
     @MainActor
     func fetchEvents(for interval: DateInterval) async {
@@ -110,7 +150,45 @@ final class GoogleCalendarService {
 #endif
     }
 
-    // MARK: – Privado: llamada REST
+    // MARK: – Escritura
+
+    @MainActor
+    func createEvent(title: String, start: Date, end: Date, isAllDay: Bool) async throws {
+#if canImport(GoogleSignIn)
+        guard let user = GIDSignIn.sharedInstance.currentUser else { return }
+        try await user.refreshTokensIfNeeded()
+        let token = user.accessToken.tokenString
+        let newEvent = try await postCalendarEvent(token: token, title: title, start: start, end: end, isAllDay: isAllDay)
+        events.append(newEvent)
+        events.sort { $0.start < $1.start }
+#endif
+    }
+
+    @MainActor
+    func updateEvent(id: String, title: String, start: Date, end: Date, isAllDay: Bool) async throws {
+#if canImport(GoogleSignIn)
+        guard let user = GIDSignIn.sharedInstance.currentUser else { return }
+        try await user.refreshTokensIfNeeded()
+        let token = user.accessToken.tokenString
+        let updated = try await patchCalendarEvent(token: token, id: id, title: title, start: start, end: end, isAllDay: isAllDay)
+        if let idx = events.firstIndex(where: { $0.id == id }) {
+            events[idx] = updated
+        }
+#endif
+    }
+
+    @MainActor
+    func deleteEvent(id: String) async throws {
+#if canImport(GoogleSignIn)
+        guard let user = GIDSignIn.sharedInstance.currentUser else { return }
+        try await user.refreshTokensIfNeeded()
+        let token = user.accessToken.tokenString
+        try await deleteCalendarEvent(token: token, id: id)
+        events.removeAll { $0.id == id }
+#endif
+    }
+
+    // MARK: – REST privado: fetch
 
     private func fetchCalendarEvents(token: String, interval: DateInterval) async throws -> [CalendarEvent] {
         let iso = ISO8601DateFormatter()
@@ -132,8 +210,87 @@ final class GoogleCalendarService {
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
-
         let decoded = try JSONDecoder().decode(GCListResponse.self, from: data)
+        return (decoded.items ?? []).compactMap { gcItemToEvent($0) }
+    }
+
+    // MARK: – REST privado: write
+
+    private func postCalendarEvent(token: String, title: String, start: Date, end: Date, isAllDay: Bool) async throws -> CalendarEvent {
+        let url = URL(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(makeEventBody(title: title, start: start, end: end, isAllDay: isAllDay))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let code = (response as? HTTPURLResponse)?.statusCode, (200..<300).contains(code) else {
+            throw URLError(.badServerResponse)
+        }
+        guard let event = gcItemToEvent(try JSONDecoder().decode(GCItem.self, from: data)) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return event
+    }
+
+    private func patchCalendarEvent(token: String, id: String, title: String, start: Date, end: Date, isAllDay: Bool) async throws -> CalendarEvent {
+        let url = URL(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events/\(id)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(makeEventBody(title: title, start: start, end: end, isAllDay: isAllDay))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let code = (response as? HTTPURLResponse)?.statusCode, (200..<300).contains(code) else {
+            throw URLError(.badServerResponse)
+        }
+        guard let event = gcItemToEvent(try JSONDecoder().decode(GCItem.self, from: data)) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return event
+    }
+
+    private func deleteCalendarEvent(token: String, id: String) async throws {
+        let url = URL(string: "https://www.googleapis.com/calendar/v3/calendars/primary/events/\(id)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 204 || (200..<300).contains(code) else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    // MARK: – Helpers
+
+    private func makeEventBody(title: String, start: Date, end: Date, isAllDay: Bool) -> GCEventBody {
+        if isAllDay {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyy-MM-dd"
+            fmt.locale = Locale(identifier: "en_US_POSIX")
+            fmt.timeZone = .current
+            return GCEventBody(
+                summary: title,
+                start: .init(date: fmt.string(from: start)),
+                end: .init(date: fmt.string(from: end))
+            )
+        } else {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime]
+            return GCEventBody(
+                summary: title,
+                start: .init(dateTime: iso.string(from: start), timeZone: TimeZone.current.identifier),
+                end: .init(dateTime: iso.string(from: end), timeZone: TimeZone.current.identifier)
+            )
+        }
+    }
+
+    private func gcItemToEvent(_ item: GCItem) -> CalendarEvent? {
+        guard let id = item.id, let title = item.summary else { return nil }
 
         let isoFull = ISO8601DateFormatter()
         isoFull.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -147,30 +304,26 @@ final class GoogleCalendarService {
             return f
         }()
 
-        return (decoded.items ?? []).compactMap { item in
-            guard let id = item.id, let title = item.summary else { return nil }
-
-            func parseDate(from dt: GCDateTime?) -> (Date, Bool)? {
-                if let raw = dt?.dateTime {
-                    let d = isoFull.date(from: raw) ?? isoBasic.date(from: raw)
-                    return d.map { ($0, false) }
-                }
-                if let raw = dt?.date {
-                    return dayParser.date(from: raw).map { ($0, true) }
-                }
-                return nil
+        func parseDate(from dt: GCDateTime?) -> (Date, Bool)? {
+            if let raw = dt?.dateTime {
+                let d = isoFull.date(from: raw) ?? isoBasic.date(from: raw)
+                return d.map { ($0, false) }
             }
-
-            guard let (start, isAllDay) = parseDate(from: item.start),
-                  let (end, _)          = parseDate(from: item.end) else { return nil }
-
-            return CalendarEvent(
-                id: id, title: title,
-                start: start, end: end,
-                isAllDay: isAllDay,
-                colorHex: Self.gcColorHex(item.colorId)
-            )
+            if let raw = dt?.date {
+                return dayParser.date(from: raw).map { ($0, true) }
+            }
+            return nil
         }
+
+        guard let (start, isAllDay) = parseDate(from: item.start),
+              let (end, _)          = parseDate(from: item.end) else { return nil }
+
+        return CalendarEvent(
+            id: id, title: title,
+            start: start, end: end,
+            isAllDay: isAllDay,
+            colorHex: Self.gcColorHex(item.colorId)
+        )
     }
 
     private static func gcColorHex(_ colorId: String?) -> String {

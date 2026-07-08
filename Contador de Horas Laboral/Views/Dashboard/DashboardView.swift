@@ -1,13 +1,13 @@
 import SwiftUI
 import SwiftData
 
-/// Pantalla de inicio: resumen de la semana actual de un vistazo.
 struct DashboardView: View {
     @Query private var entries: [TimeEntry]
     @Query private var settings: [AppSettings]
     @Query(sort: \Client.name) private var clients: [Client]
 
     @Environment(TimerManager.self) private var timerManager
+    @Environment(LanguageManager.self) private var lang
     @State private var showingNewEntry = false
 
     private var weekInterval: DateInterval { Date().interval(of: .week) }
@@ -30,11 +30,11 @@ struct DashboardView: View {
                         .padding(.vertical, 4)
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        SummaryCard(title: "Asignadas", value: Formatters.hours(assigned), systemImage: "target", tint: .blue)
-                        SummaryCard(title: "Trabajadas", value: Formatters.hours(worked), systemImage: "clock.fill", tint: .orange)
-                        SummaryCard(title: "Restantes", value: Formatters.hours(progress.remaining), systemImage: "hourglass", tint: .green)
+                        SummaryCard(title: lang["dash.assigned"], value: Formatters.hours(assigned), systemImage: "target", tint: .blue)
+                        SummaryCard(title: lang["dash.worked"], value: Formatters.hours(worked), systemImage: "clock.fill", tint: .orange)
+                        SummaryCard(title: lang["dash.remaining"], value: Formatters.hours(progress.remaining), systemImage: "hourglass", tint: .green)
                         SummaryCard(
-                            title: progress.isOver ? "Exceso" : "Progreso",
+                            title: progress.isOver ? lang["dash.excess"] : lang["dash.progress"],
                             value: progress.isOver ? "+\(Formatters.hours(progress.overflow))" : "\(Int(progress.fraction * 100)) %",
                             systemImage: progress.isOver ? "exclamationmark.triangle.fill" : "chart.bar.fill",
                             tint: progress.isOver ? .red : .purple
@@ -46,7 +46,7 @@ struct DashboardView: View {
                     Button {
                         showingNewEntry = true
                     } label: {
-                        Label("Registrar horas", systemImage: "plus.circle.fill")
+                        Label(lang["dash.record_hours"], systemImage: "plus.circle.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
@@ -56,7 +56,7 @@ struct DashboardView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Inicio")
+            .navigationTitle(lang["tab.home"])
             .sheet(isPresented: $showingNewEntry) {
                 TimeEntryFormView()
             }
@@ -74,7 +74,7 @@ struct DashboardView: View {
     private var timerCard: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Cronómetro")
+                Text(lang["dash.timer"])
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 6) {
@@ -112,11 +112,11 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Guardar") { timerManager.showingSaveTimer = true }
+                Button(lang["dash.save"]) { timerManager.showingSaveTimer = true }
                     .buttonStyle(.borderedProminent)
             } else {
                 Button { timerManager.startTimer() } label: {
-                    Label("Iniciar", systemImage: "play.fill")
+                    Label(lang["dash.start"], systemImage: "play.fill")
                         .font(.subheadline.weight(.medium))
                 }
                 .buttonStyle(.borderedProminent)
@@ -133,7 +133,7 @@ struct DashboardView: View {
 
     private var header: some View {
         VStack(spacing: 4) {
-            Text("Semana actual")
+            Text(lang["dash.current_week"])
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(weekInterval.shortRangeLabel)
@@ -147,10 +147,10 @@ struct DashboardView: View {
     @ViewBuilder
     private var breakdownSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Por cliente / departamento")
+            Text(lang["dash.by_client"])
                 .font(.headline)
             if clientBreakdown.isEmpty {
-                Text("Aún no has registrado horas esta semana.")
+                Text(lang["dash.no_hours"])
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
@@ -174,4 +174,5 @@ struct DashboardView: View {
     DashboardView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
         .environment(TimerManager())
+        .environment(LanguageManager())
 }

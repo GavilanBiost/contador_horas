@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Formulario para crear o editar un cliente / departamento.
 struct ClientFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(LanguageManager.self) private var lang
 
     var client: Client?
 
@@ -16,20 +16,20 @@ struct ClientFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Nombre") {
-                    TextField("Ej. Cliente Acme / Marketing", text: $name)
+                Section(lang["clients.name"]) {
+                    TextField(lang["clients.placeholder"], text: $name)
                 }
-                Section("Color identificativo") {
+                Section(lang["clients.color"]) {
                     ColorSelector(selectedHex: $colorHex)
                         .padding(.vertical, 4)
                 }
             }
-            .navigationTitle(client == nil ? "Nuevo cliente" : "Editar cliente")
+            .navigationTitle(client == nil ? lang["clients.new"] : lang["clients.edit"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(lang["clients.cancel"]) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar", action: save).disabled(!isValid)
+                    Button(lang["clients.save"], action: save).disabled(!isValid)
                 }
             }
             .onAppear {
@@ -56,4 +56,5 @@ struct ClientFormView: View {
 #Preview {
     ClientFormView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

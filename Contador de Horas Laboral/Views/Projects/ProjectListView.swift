@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Gestión de proyectos: crear, editar y eliminar.
 struct ProjectListView: View {
     @Environment(\.modelContext) private var context
+    @Environment(LanguageManager.self) private var lang
     @Query(sort: \Project.name) private var projects: [Project]
     @Query(sort: \Client.name) private var clients: [Client]
 
@@ -15,11 +15,11 @@ struct ProjectListView: View {
             if projects.isEmpty {
                 EmptyStateView(
                     systemImage: "folder.fill",
-                    title: "Sin proyectos",
+                    title: lang["projects.empty_title"],
                     message: clients.isEmpty
-                        ? "Crea primero un cliente y luego asígnale proyectos."
-                        : "Crea tu primer proyecto y asígnalo a un cliente.",
-                    actionTitle: clients.isEmpty ? nil : "Nuevo proyecto",
+                        ? lang["projects.empty_no_clients"]
+                        : lang["projects.empty_message"],
+                    actionTitle: clients.isEmpty ? nil : lang["projects.add"],
                     action: clients.isEmpty ? nil : { showingForm = true }
                 )
             } else {
@@ -31,7 +31,7 @@ struct ProjectListView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(project.name).foregroundStyle(.primary)
                                     Text(project.clients.isEmpty
-                                         ? "Sin cliente"
+                                         ? lang["projects.no_client"]
                                          : project.clients.map(\.name).sorted().joined(separator: ", "))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
@@ -47,7 +47,7 @@ struct ProjectListView: View {
                 }
             }
         }
-        .navigationTitle("Proyectos")
+        .navigationTitle(lang["projects.title"])
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingForm = true } label: { Image(systemName: "plus") }
@@ -67,4 +67,5 @@ struct ProjectListView: View {
 #Preview {
     NavigationStack { ProjectListView() }
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
+        .environment(LanguageManager())
 }

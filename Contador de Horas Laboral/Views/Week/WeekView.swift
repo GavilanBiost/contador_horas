@@ -27,6 +27,8 @@ struct WeekView: View {
     @State private var selectedDay: Date?
     @State private var weekTab: WeekTab = .summary
     @State private var selectedCalendarEvent: CalendarEvent?
+    @State private var showCreateEventForm = false
+    @State private var createEventDefaultDate: Date = Date()
 
     private enum WeekTab: String, CaseIterable {
         case summary  = "Resumen"
@@ -110,6 +112,18 @@ struct WeekView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Semana")
+            .toolbar {
+                if weekTab == .calendar && calendarService.isSignedIn && calendarService.hasWriteAccess {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            createEventDefaultDate = selectedDay ?? Date()
+                            showCreateEventForm = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
+            }
             .onChange(of: weekOffset) { _, _ in
                 withAnimation { selectedDay = nil }
                 if weekTab == .calendar && calendarService.isSignedIn {
@@ -123,6 +137,9 @@ struct WeekView: View {
             }
             .sheet(item: $selectedCalendarEvent) { event in
                 CalendarEventDetailView(event: event)
+            }
+            .sheet(isPresented: $showCreateEventForm) {
+                CalendarEventFormView(event: nil, defaultDate: createEventDefaultDate, onSave: {})
             }
         }
     }
@@ -262,7 +279,7 @@ struct WeekView: View {
         )
     }
 
-    // MARK: – Calendar tab: connection states
+    // MARK: – Calendar tab: estados de conexión
 
     @ViewBuilder
     private var calendarEventsSection: some View {
@@ -272,6 +289,10 @@ struct WeekView: View {
             calLoadingCard
         } else {
             VStack(spacing: 12) {
+                if !calendarService.hasWriteAccess {
+                    calWriteAccessBanner
+                }
+
                 weeklyCalendarGrid
 
                 if let error = calendarService.errorMessage {
@@ -344,6 +365,38 @@ struct WeekView: View {
         )
     }
 
+    // Banner que aparece cuando el usuario está conectado con permisos de solo lectura
+    private var calWriteAccessBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "pencil.slash")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Solo lectura")
+                    .font(.subheadline.weight(.medium))
+                Text("Amplía los permisos para crear y editar eventos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                Task { await calendarService.requestWriteAccess() }
+            } label: {
+                Text("Ampliar")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.orange.opacity(0.15))
+                    .foregroundStyle(.orange)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(12)
+        .background(
+            Color.orange.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
+    }
+
     // MARK: – Weekly Calendar Grid
 
     private var weeklyCalendarGrid: some View {
@@ -362,12 +415,12 @@ struct WeekView: View {
                     calTimeGrid
                 }
                 .onAppear {
-                    let scrollHour = max(calStartHour, min(calEndHour - 1, Calendar.current.component(.hour, from: Date()) - 1))
-                    proxy.scrollTo(scrollHour, anchor: .top)
+                    let h = max(calStartHour, min(calEndHour - 1, Calendar.current.component(.hour, from: Date()) - 1))
+                    proxy.scrollTo(h, anchor: .top)
                 }
                 .onChange(of: weekOffset) { _, _ in
-                    let scrollHour = max(calStartHour, min(calEndHour - 1, Calendar.current.component(.hour, from: Date()) - 1))
-                    proxy.scrollTo(scrollHour, anchor: .top)
+                    let h = max(calStartHour, min(calEndHour - 1, Calendar.current.component(.hour, from: Date()) - 1))
+                    proxy.scrollTo(h, anchor: .top)
                 }
             }
         }
@@ -378,7 +431,7 @@ struct WeekView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // Day header row with weekday names and date numbers
+    // Cabecera con nombres de día y número
     private var calDayHeaderRow: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: calTimeWidth)
@@ -403,7 +456,7 @@ struct WeekView: View {
         }
     }
 
-    // All-day events strip at the top
+    // Franja de eventos de todo el día
     private func calAllDayStrip(_ events: [CalendarEvent]) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text("Todo\nel día")
@@ -442,10 +495,10 @@ struct WeekView: View {
         .padding(.vertical, 6)
     }
 
-    // Scrollable time grid with hour labels and event columns
+    // Cuadrícula horaria con eventos
     private var calTimeGrid: some View {
         ZStack(alignment: .topLeading) {
-            // Hour lines and time labels
+            // Líneas de hora y etiquetas
             VStack(spacing: 0) {
                 ForEach(calStartHour..<calEndHour, id: \.self) { hour in
                     HStack(spacing: 0) {
@@ -464,7 +517,7 @@ struct WeekView: View {
                 }
             }
 
-            // Day event columns
+            // Columnas de eventos por día
             HStack(alignment: .top, spacing: 0) {
                 Color.clear.frame(width: calTimeWidth)
                 ForEach(days, id: \.self) { day in
@@ -472,7 +525,7 @@ struct WeekView: View {
                 }
             }
 
-            // Current time red line (only shown for current week)
+            // Indicador de hora actual (solo semana actual)
             if weekOffset == 0 {
                 calNowIndicator
             }
@@ -480,7 +533,7 @@ struct WeekView: View {
         .frame(height: CGFloat(calEndHour - calStartHour) * calHourHeight)
     }
 
-    // Events within a single day column
+    // Columna de eventos de un día concreto
     private func calDayEventsColumn(_ day: Date) -> some View {
         let timedEvents = calendarService.events.filter {
             !$0.isAllDay && Calendar.app.isDate($0.start, inSameDayAs: day)
@@ -490,8 +543,8 @@ struct WeekView: View {
             ForEach(timedEvents) { event in
                 let top = calEventTop(event)
                 let height = calEventHeight(event)
-                let totalGridHeight = CGFloat(calEndHour - calStartHour) * calHourHeight
-                if top < totalGridHeight {
+                let totalH = CGFloat(calEndHour - calStartHour) * calHourHeight
+                if top < totalH {
                     calEventBlock(event, height: height)
                         .offset(y: max(0, top))
                 }
@@ -501,7 +554,7 @@ struct WeekView: View {
         .padding(.horizontal, 1)
     }
 
-    // Colored event block (tappable)
+    // Bloque visual de un evento (pulsable)
     private func calEventBlock(_ event: CalendarEvent, height: CGFloat) -> some View {
         Button {
             selectedCalendarEvent = event
@@ -512,11 +565,9 @@ struct WeekView: View {
                     .foregroundStyle(.white)
                     .lineLimit(height > 30 ? 2 : 1)
                 if height > 34 {
-                    Text(
-                        "\(Formatters.timeShort.string(from: event.start)) – \(Formatters.timeShort.string(from: event.end))"
-                    )
-                    .font(.system(size: 9))
-                    .foregroundStyle(.white.opacity(0.85))
+                    Text("\(Formatters.timeShort.string(from: event.start)) – \(Formatters.timeShort.string(from: event.end))")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
             }
             .padding(.horizontal, 5)
@@ -529,7 +580,7 @@ struct WeekView: View {
         .buttonStyle(.plain)
     }
 
-    // Red horizontal line at current time
+    // Línea roja en la hora actual
     @ViewBuilder
     private var calNowIndicator: some View {
         let cal = Calendar.current
@@ -539,8 +590,7 @@ struct WeekView: View {
         if hour >= calStartHour && hour < calEndHour {
             let y = CGFloat((hour - calStartHour) * 60 + minute) / 60.0 * calHourHeight
             GeometryReader { geo in
-                let colCount = CGFloat(days.count)
-                let colWidth = (geo.size.width - calTimeWidth) / colCount
+                let colWidth = (geo.size.width - calTimeWidth) / CGFloat(days.count)
                 let todayIdx = CGFloat(days.firstIndex(where: { Calendar.app.isDateInToday($0) }) ?? 0)
                 let x = calTimeWidth + todayIdx * colWidth
                 ZStack(alignment: .leading) {
@@ -558,7 +608,7 @@ struct WeekView: View {
         }
     }
 
-    // MARK: – Calendar helper functions
+    // MARK: – Helpers de calendario
 
     private func calEventTop(_ event: CalendarEvent) -> CGFloat {
         let cal = Calendar.current
@@ -675,10 +725,14 @@ private struct DayColumn: View {
 struct CalendarEventDetailView: View {
     let event: CalendarEvent
     @Environment(\.dismiss) private var dismiss
+    @Environment(GoogleCalendarService.self) private var calendarService
+
+    @State private var showEditForm = false
+    @State private var editSucceeded = false
+    @State private var showDeleteConfirm = false
 
     private var durationText: String {
-        let seconds = event.end.timeIntervalSince(event.start)
-        let totalMinutes = Int(seconds / 60)
+        let totalMinutes = Int(event.end.timeIntervalSince(event.start) / 60)
         let h = totalMinutes / 60
         let m = totalMinutes % 60
         switch (h, m) {
@@ -704,11 +758,9 @@ struct CalendarEventDetailView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
-                                Text(
-                                    "\(Formatters.timeShort.string(from: event.start)) – \(Formatters.timeShort.string(from: event.end))"
-                                )
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                Text("\(Formatters.timeShort.string(from: event.start)) – \(Formatters.timeShort.string(from: event.end))")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -721,7 +773,6 @@ struct CalendarEventDetailView: View {
                     } icon: {
                         Image(systemName: "calendar")
                     }
-
                     if !event.isAllDay {
                         Label {
                             Text(durationText)
@@ -730,17 +781,179 @@ struct CalendarEventDetailView: View {
                         }
                     }
                 }
+
+                if calendarService.hasWriteAccess {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Eliminar evento", systemImage: "trash")
+                        }
+                    }
+                }
             }
             .navigationTitle("Detalle del evento")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
+                }
+                if calendarService.hasWriteAccess {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Editar") { showEditForm = true }
+                    }
+                }
+            }
+            .confirmationDialog(
+                "¿Eliminar \"\(event.title)\"?",
+                isPresented: $showDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Eliminar", role: .destructive) {
+                    Task {
+                        try? await calendarService.deleteEvent(id: event.id)
+                        dismiss()
+                    }
+                }
+            }
+            .sheet(isPresented: $showEditForm, onDismiss: {
+                if editSucceeded { dismiss() }
+            }) {
+                CalendarEventFormView(event: event, defaultDate: event.start) {
+                    editSucceeded = true
                 }
             }
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Calendar Event Form (crear / editar)
+
+struct CalendarEventFormView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(GoogleCalendarService.self) private var calendarService
+
+    let event: CalendarEvent?
+    let defaultDate: Date
+    let onSave: () -> Void
+
+    @State private var title = ""
+    @State private var isAllDay = false
+    @State private var startDate = Date()
+    @State private var endDate = Date().addingTimeInterval(3600)
+    @State private var isSaving = false
+    @State private var saveError: String?
+
+    private var isEditing: Bool { event != nil }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Título del evento", text: $title)
+                }
+
+                Section {
+                    Toggle("Todo el día", isOn: $isAllDay.animation())
+                    if isAllDay {
+                        DatePicker("Fecha", selection: $startDate, displayedComponents: .date)
+                    } else {
+                        DatePicker("Inicio", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker("Fin", selection: $endDate, displayedComponents: [.date, .hourAndMinute])
+                    }
+                }
+
+                if let error = saveError {
+                    Section {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle(isEditing ? "Editar evento" : "Nuevo evento")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView().scaleEffect(0.8)
+                    } else {
+                        Button(isEditing ? "Guardar" : "Crear") {
+                            Task { await save() }
+                        }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            .onChange(of: startDate) { _, newStart in
+                if endDate <= newStart {
+                    endDate = newStart.addingTimeInterval(3600)
+                }
+            }
+            .onAppear { initializeFields() }
+        }
+    }
+
+    private func initializeFields() {
+        if let event {
+            title = event.title
+            isAllDay = event.isAllDay
+            startDate = event.start
+            endDate = event.end
+        } else {
+            // Redondear al inicio de la siguiente hora
+            let cal = Calendar.current
+            var comps = cal.dateComponents([.year, .month, .day, .hour], from: defaultDate)
+            comps.minute = 0
+            let rounded = cal.date(from: comps) ?? defaultDate
+            startDate = rounded
+            endDate = rounded.addingTimeInterval(3600)
+        }
+    }
+
+    private func save() async {
+        let cleanTitle = title.trimmingCharacters(in: .whitespaces)
+        guard !cleanTitle.isEmpty else { return }
+
+        isSaving = true
+        saveError = nil
+
+        // Para eventos de todo el día, end = start + 1 día
+        let effectiveEnd: Date
+        if isAllDay {
+            effectiveEnd = Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? endDate
+        } else {
+            effectiveEnd = endDate > startDate ? endDate : startDate.addingTimeInterval(3600)
+        }
+
+        do {
+            if let event {
+                try await calendarService.updateEvent(
+                    id: event.id,
+                    title: cleanTitle,
+                    start: startDate,
+                    end: effectiveEnd,
+                    isAllDay: isAllDay
+                )
+            } else {
+                try await calendarService.createEvent(
+                    title: cleanTitle,
+                    start: startDate,
+                    end: effectiveEnd,
+                    isAllDay: isAllDay
+                )
+            }
+            onSave()
+            dismiss()
+        } catch {
+            saveError = "No se pudo guardar el evento. Comprueba tu conexión."
+            isSaving = false
+        }
     }
 }
 
