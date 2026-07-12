@@ -154,7 +154,7 @@ struct WeekView: View {
             }
             Spacer()
             VStack(spacing: 2) {
-                Text(interval.shortRangeLabel).font(.headline)
+                Text(lang.shortRange(interval)).font(.headline)
                 if weekOffset == 0 {
                     Text(lang["week.this_week"]).font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -205,7 +205,7 @@ struct WeekView: View {
     private func dayDetailCard(_ day: Date) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(Formatters.dayFull.string(from: day).capitalized)
+                Text(lang.dayFull(day))
                     .font(.headline)
                 Spacer()
                 Text(Formatters.hours(HoursCalculator.total(selectedDayEntries)))
@@ -770,7 +770,7 @@ struct CalendarEventDetailView: View {
 
                 Section {
                     Label {
-                        Text(Formatters.dayFull.string(from: event.start).capitalized)
+                        Text(lang.dayFull(event.start))
                     } icon: {
                         Image(systemName: "calendar")
                     }

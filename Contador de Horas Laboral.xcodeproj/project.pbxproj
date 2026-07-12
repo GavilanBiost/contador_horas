@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A52AB4BD304AF93D00B06E9E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A52AB4BC304AF93D00B06E9E /* WidgetKit.framework */; };
+		A52AB4BF304AF93D00B06E9E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A52AB4BE304AF93D00B06E9E /* SwiftUI.framework */; };
+		A52AB4D0304AF93F00B06E9E /* Contador de horas laboralExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A52AB4BB304AF93D00B06E9E /* Contador de horas laboralExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A56C67982FFA7CB600B9DFEF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A56C67972FFA7CB600B9DFEF /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
@@ -25,12 +28,36 @@
 			remoteGlobalIDString = A516ED212FE85A9E001990B2;
 			remoteInfo = "Contador de Horas Laboral";
 		};
+		A52AB4CE304AF93F00B06E9E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A516ED1A2FE85A9E001990B2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A52AB4BA304AF93D00B06E9E;
+			remoteInfo = "Contador de horas laboralExtension";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A52AB4D5304AF93F00B06E9E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A52AB4D0304AF93F00B06E9E /* Contador de horas laboralExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A516ED222FE85A9E001990B2 /* Contador de Horas Laboral.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Contador de Horas Laboral.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A516ED312FE85A9F001990B2 /* Contador de Horas LaboralTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Contador de Horas LaboralTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A516ED3B2FE85A9F001990B2 /* Contador de Horas LaboralUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Contador de Horas LaboralUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A52AB4BB304AF93D00B06E9E /* Contador de horas laboralExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Contador de horas laboralExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A52AB4BC304AF93D00B06E9E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A52AB4BE304AF93D00B06E9E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -54,9 +81,21 @@
 			};
 			target = A516ED3A2FE85A9F001990B2 /* Contador de Horas LaboralUITests */;
 		};
+		A52AB528304B000900B06E9E /* Exceptions for "TimerWidgetExtension" folder in "Contador de horas laboralExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A52AB4BA304AF93D00B06E9E /* Contador de horas laboralExtension */;
+		};
 		A5B7CCB12FF6FBE8004F61A3 /* Exceptions for "Contador de Horas Laboral" folder in "Contador de Horas Laboral" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AppIntent.swift,
+				Contador_de_horas_laboral.swift,
+				Contador_de_horas_laboralBundle.swift,
+				Contador_de_horas_laboralControl.swift,
+				Contador_de_horas_laboralLiveActivity.swift,
 				Info.plist,
 			);
 			platformFiltersByRelativePath = {
@@ -87,6 +126,14 @@
 			path = "Contador de Horas LaboralUITests";
 			sourceTree = "<group>";
 		};
+		A52AB527304B000800B06E9E /* TimerWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A52AB528304B000900B06E9E /* Exceptions for "TimerWidgetExtension" folder in "Contador de horas laboralExtension" target */,
+			);
+			path = TimerWidgetExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +159,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A52AB4B8304AF93D00B06E9E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A52AB4BF304AF93D00B06E9E /* SwiftUI.framework in Frameworks */,
+				A52AB4BD304AF93D00B06E9E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -121,6 +177,7 @@
 				A516ED242FE85A9E001990B2 /* Contador de Horas Laboral */,
 				A516ED342FE85A9F001990B2 /* Contador de Horas LaboralTests */,
 				A516ED3E2FE85A9F001990B2 /* Contador de Horas LaboralUITests */,
+				A52AB527304B000800B06E9E /* TimerWidgetExtension */,
 				A56C67962FFA7CB600B9DFEF /* Frameworks */,
 				A516ED232FE85A9E001990B2 /* Products */,
 			);
@@ -132,6 +189,7 @@
 				A516ED222FE85A9E001990B2 /* Contador de Horas Laboral.app */,
 				A516ED312FE85A9F001990B2 /* Contador de Horas LaboralTests.xctest */,
 				A516ED3B2FE85A9F001990B2 /* Contador de Horas LaboralUITests.xctest */,
+				A52AB4BB304AF93D00B06E9E /* Contador de horas laboralExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -139,6 +197,8 @@
 		A56C67962FFA7CB600B9DFEF /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A52AB4BC304AF93D00B06E9E /* WidgetKit.framework */,
+				A52AB4BE304AF93D00B06E9E /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -153,10 +213,12 @@
 				A516ED1E2FE85A9E001990B2 /* Sources */,
 				A516ED1F2FE85A9E001990B2 /* Frameworks */,
 				A516ED202FE85A9E001990B2 /* Resources */,
+				A52AB4D5304AF93F00B06E9E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A52AB4CF304AF93F00B06E9E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A516ED242FE85A9E001990B2 /* Contador de Horas Laboral */,
@@ -215,6 +277,28 @@
 			productReference = A516ED3B2FE85A9F001990B2 /* Contador de Horas LaboralUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		A52AB4BA304AF93D00B06E9E /* Contador de horas laboralExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A52AB4D1304AF93F00B06E9E /* Build configuration list for PBXNativeTarget "Contador de horas laboralExtension" */;
+			buildPhases = (
+				A52AB4B7304AF93D00B06E9E /* Sources */,
+				A52AB4B8304AF93D00B06E9E /* Frameworks */,
+				A52AB4B9304AF93D00B06E9E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A52AB527304B000800B06E9E /* TimerWidgetExtension */,
+			);
+			name = "Contador de horas laboralExtension";
+			packageProductDependencies = (
+			);
+			productName = "Contador de horas laboralExtension";
+			productReference = A52AB4BB304AF93D00B06E9E /* Contador de horas laboralExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -222,7 +306,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2650;
+				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					A516ED212FE85A9E001990B2 = {
@@ -236,6 +320,9 @@
 					A516ED3A2FE85A9F001990B2 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = A516ED212FE85A9E001990B2;
+					};
+					A52AB4BA304AF93D00B06E9E = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -259,6 +346,7 @@
 				A516ED212FE85A9E001990B2 /* Contador de Horas Laboral */,
 				A516ED302FE85A9F001990B2 /* Contador de Horas LaboralTests */,
 				A516ED3A2FE85A9F001990B2 /* Contador de Horas LaboralUITests */,
+				A52AB4BA304AF93D00B06E9E /* Contador de horas laboralExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -279,6 +367,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A516ED392FE85A9F001990B2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A52AB4B9304AF93D00B06E9E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -309,6 +404,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A52AB4B7304AF93D00B06E9E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -321,6 +423,11 @@
 			isa = PBXTargetDependency;
 			target = A516ED212FE85A9E001990B2 /* Contador de Horas Laboral */;
 			targetProxy = A516ED3C2FE85A9F001990B2 /* PBXContainerItemProxy */;
+		};
+		A52AB4CF304AF93F00B06E9E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A52AB4BA304AF93D00B06E9E /* Contador de horas laboralExtension */;
+			targetProxy = A52AB4CE304AF93F00B06E9E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -488,7 +595,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "GavilanBiost.Contador-de-Horas-Laboral";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -548,7 +655,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "GavilanBiost.Contador-de-Horas-Laboral";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -668,6 +775,75 @@
 			};
 			name = Release;
 		};
+		A52AB4D2304AF93F00B06E9E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y5VK9RUMY7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TimerWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Contador de Horas Laboral";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "GavilanBiost.Contador-de-Horas-Laboral.Contador-de-horas-laboral";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A52AB4D3304AF93F00B06E9E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y5VK9RUMY7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TimerWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Contador de Horas Laboral";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "GavilanBiost.Contador-de-Horas-Laboral.Contador-de-horas-laboral";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -703,6 +879,15 @@
 			buildConfigurations = (
 				A516ED4C2FE85A9F001990B2 /* Debug */,
 				A516ED4D2FE85A9F001990B2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A52AB4D1304AF93F00B06E9E /* Build configuration list for PBXNativeTarget "Contador de horas laboralExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A52AB4D2304AF93F00B06E9E /* Debug */,
+				A52AB4D3304AF93F00B06E9E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

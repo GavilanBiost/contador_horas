@@ -3,6 +3,9 @@ import SwiftData
 #if canImport(GoogleSignIn)
 import GoogleSignIn
 #endif
+#if canImport(ActivityKit)
+import ActivityKit
+#endif
 
 // MARK: - TimerManager
 
@@ -17,6 +20,8 @@ final class TimerManager {
     private var base: TimeInterval = 0     // tiempo acumulado antes de la última pausa
     private var startDate: Date?           // cuándo se inició la sesión actual
     private var ticker: Timer?
+    // Almacén genérico para Activity<TimerActivityAttributes> (evita restricciones de @available en stored props)
+    private var _liveActivity: Any?
 
     private enum Keys {
         static let start = "timer.start"
@@ -31,6 +36,7 @@ final class TimerManager {
             timerRunning = true
             timerDisplayed = base + Date().timeIntervalSince(start)
             startTicking()
+            reconnectLiveActivity()
         } else {
             timerDisplayed = base
         }
@@ -42,6 +48,7 @@ final class TimerManager {
         UserDefaults.standard.set(now, forKey: Keys.start)
         timerRunning = true
         startTicking()
+        updateLiveActivity(isRunning: true)
     }
 
     func pauseTimer() {
@@ -54,6 +61,7 @@ final class TimerManager {
         UserDefaults.standard.set(base, forKey: Keys.base)
         UserDefaults.standard.removeObject(forKey: Keys.start)
         stopTicking()
+        updateLiveActivity(isRunning: false)
     }
 
     func resetTimer() {
@@ -65,6 +73,7 @@ final class TimerManager {
         showingSaveTimer = false
         UserDefaults.standard.removeObject(forKey: Keys.start)
         UserDefaults.standard.removeObject(forKey: Keys.base)
+        endLiveActivity()
     }
 
     func formatTimer() -> String {
@@ -89,6 +98,64 @@ final class TimerManager {
     private func stopTicking() {
         ticker?.invalidate()
         ticker = nil
+    }
+
+    // MARK: - Live Activity
+
+    @available(iOS 16.2, *)
+    private var currentActivity: Activity<TimerActivityAttributes>? {
+        get { _liveActivity as? Activity<TimerActivityAttributes> }
+        set { _liveActivity = newValue }
+    }
+
+    /// Reconecta a una Live Activity existente tras un relanzamiento de la app.
+    private func reconnectLiveActivity() {
+        guard #available(iOS 16.2, *) else { return }
+        currentActivity = Activity<TimerActivityAttributes>.activities.first
+    }
+
+    /// effectiveStartDate es la fecha desde la que Text(timerInterval:) muestra el tiempo total.
+    /// Matemática: now - effectiveStart = base + (now - startDate) = tiempo total transcurrido.
+    private func makeContentState(isRunning: Bool) -> TimerActivityAttributes.ContentState {
+        let effectiveStart: Date? = isRunning
+            ? startDate?.addingTimeInterval(-base)
+            : nil
+        return TimerActivityAttributes.ContentState(
+            effectiveStartDate: effectiveStart,
+            isRunning: isRunning,
+            pausedElapsed: base,
+            projectName: "",
+            clientName: ""
+        )
+    }
+
+    private func updateLiveActivity(isRunning: Bool) {
+        guard #available(iOS 16.2, *) else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let content = ActivityContent(state: makeContentState(isRunning: isRunning), staleDate: nil)
+
+        if let activity = currentActivity {
+            Task { await activity.update(content) }
+        } else if isRunning {
+            do {
+                currentActivity = try Activity.request(
+                    attributes: TimerActivityAttributes(),
+                    content: content
+                )
+            } catch {
+                print("Live Activity start error: \(error)")
+            }
+        }
+    }
+
+    private func endLiveActivity() {
+        guard #available(iOS 16.2, *) else { return }
+        guard let activity = currentActivity else { return }
+        Task {
+            await activity.end(nil, dismissalPolicy: .immediate)
+            currentActivity = nil
+        }
     }
 }
 

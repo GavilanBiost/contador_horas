@@ -35,8 +35,8 @@ struct StatisticsView: View {
 
     private var periodLabel: String {
         switch period {
-        case .week:  return interval.shortRangeLabel
-        case .month: return Formatters.monthYear.string(from: interval.start).capitalized
+        case .week:  return lang.shortRange(interval)
+        case .month: return lang.monthYear(interval.start)
         case .year:  return "\(Calendar.app.component(.year, from: interval.start))"
         }
     }

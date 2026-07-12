@@ -136,7 +136,7 @@ struct DashboardView: View {
             Text(lang["dash.current_week"])
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text(weekInterval.shortRangeLabel)
+            Text(lang.shortRange(weekInterval))
                 .font(.title3.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)

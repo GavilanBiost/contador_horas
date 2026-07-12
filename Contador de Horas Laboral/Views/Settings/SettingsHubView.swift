@@ -68,7 +68,7 @@ struct SettingsHubView: View {
                 }
 
                 Section {
-                    LabeledContent(lang["settings.version"], value: "1.2")
+                    LabeledContent(lang["settings.version"], value: "1.4")
                 } footer: {
                     Text(lang["settings.privacy"])
                 }
