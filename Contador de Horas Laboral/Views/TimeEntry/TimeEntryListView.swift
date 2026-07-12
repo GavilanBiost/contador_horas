@@ -3,7 +3,6 @@ import SwiftData
 
 struct TimeEntryListView: View {
     @Environment(\.modelContext) private var context
-    @Environment(TimerManager.self) private var timerManager
     @Environment(LanguageManager.self) private var lang
 
     @Query(sort: [SortDescriptor(\TimeEntry.date, order: .reverse),
@@ -36,7 +35,6 @@ struct TimeEntryListView: View {
     }
 
     var body: some View {
-        @Bindable var manager = timerManager
         NavigationStack {
             Group {
                 if filtered.isEmpty {
@@ -66,7 +64,7 @@ struct TimeEntryListView: View {
                                 }
                             } header: {
                                 HStack {
-                                    Text(Formatters.dayFull.string(from: group.day).capitalized)
+                                    Text(lang.dayFull(group.day))
                                     Spacer()
                                     Text(Formatters.hours(HoursCalculator.total(group.items)))
                                         .foregroundStyle(.secondary)
@@ -75,9 +73,6 @@ struct TimeEntryListView: View {
                         }
                     }
                 }
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                timerBanner
             }
             .navigationTitle(lang["tab.records"])
             .toolbar {
@@ -88,75 +83,7 @@ struct TimeEntryListView: View {
             }
             .sheet(isPresented: $showingNewEntry) { TimeEntryFormView() }
             .sheet(item: $editingEntry) { entry in TimeEntryFormView(entry: entry) }
-            .sheet(isPresented: $manager.showingSaveTimer) {
-                TimeEntryFormView(
-                    initialHours: timerManager.timerDisplayed / 3600,
-                    onSave: { timerManager.resetTimer() }
-                )
-            }
         }
-    }
-
-    // MARK: – Timer banner
-
-    private var timerBanner: some View {
-        HStack(spacing: 12) {
-            if timerManager.timerRunning {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 8, height: 8)
-            } else {
-                Image(systemName: "timer")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(timerManager.timerDisplayed > 0 || timerManager.timerRunning
-                 ? timerManager.formatTimer()
-                 : lang["dash.timer"])
-                .font(timerManager.timerDisplayed > 0 || timerManager.timerRunning
-                      ? .system(.body, design: .monospaced).weight(.semibold)
-                      : .body)
-                .monospacedDigit()
-                .foregroundStyle(timerManager.timerDisplayed == 0 && !timerManager.timerRunning ? .secondary : .primary)
-                .contentTransition(.numericText())
-
-            Spacer()
-
-            if timerManager.timerRunning {
-                Button { timerManager.pauseTimer() } label: {
-                    Image(systemName: "stop.fill")
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            } else if timerManager.timerDisplayed > 0 {
-                Button { timerManager.resetTimer() } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
-
-                Button { timerManager.startTimer() } label: {
-                    Image(systemName: "play.fill")
-                }
-                .buttonStyle(.bordered)
-
-                Button(lang["dash.save"]) { timerManager.showingSaveTimer = true }
-                    .buttonStyle(.borderedProminent)
-            } else {
-                Button { timerManager.startTimer() } label: {
-                    Label(lang["dash.start"], systemImage: "play.fill")
-                        .font(.subheadline.weight(.medium))
-                }
-                .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.bar)
-        .overlay(alignment: .bottom) { Divider() }
-        .animation(.default, value: timerManager.timerRunning)
-        .animation(.default, value: timerManager.timerDisplayed > 0)
     }
 
     // MARK: – Filtro
@@ -219,6 +146,5 @@ private struct EntryRow: View {
 #Preview {
     TimeEntryListView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
-        .environment(TimerManager())
         .environment(LanguageManager())
 }

@@ -33,6 +33,36 @@ final class LanguageManager {
     subscript(_ key: String) -> String {
         Translations.all[language]?[key] ?? Translations.all["es"]![key] ?? key
     }
+
+    // MARK: - Locale-aware date formatting
+
+    func dayFull(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.setLocalizedDateFormatFromTemplate("EEEEdMMMM")
+        return f.string(from: date).capitalized
+    }
+
+    func monthYear(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.setLocalizedDateFormatFromTemplate("MMMMyyyy")
+        return f.string(from: date).capitalized
+    }
+
+    func dayShort(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = locale
+        f.setLocalizedDateFormatFromTemplate("dMMM")
+        return f.string(from: date)
+    }
+
+    func shortRange(_ interval: DateInterval) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let endInclusive = cal.date(byAdding: .day, value: -1, to: interval.end) ?? interval.end
+        return "\(dayShort(interval.start)) – \(dayShort(endInclusive))"
+    }
 }
 
 // MARK: - Translations
