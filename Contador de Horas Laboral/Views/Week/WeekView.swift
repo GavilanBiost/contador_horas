@@ -1,13 +1,6 @@
 import SwiftUI
 import SwiftData
 
-private let weekAbbrevFmt: DateFormatter = {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "es_ES")
-    f.dateFormat = "EEEEE"
-    return f
-}()
-
 private let weekDayNumFmt: DateFormatter = {
     let f = DateFormatter()
     f.dateFormat = "d"
@@ -22,6 +15,7 @@ struct WeekView: View {
     @Query(sort: \Client.name) private var clients: [Client]
 
     @Environment(GoogleCalendarService.self) private var calendarService
+    @Environment(LanguageManager.self) private var lang
 
     @State private var weekOffset = 0
     @State private var selectedDay: Date?
@@ -30,9 +24,8 @@ struct WeekView: View {
     @State private var showCreateEventForm = false
     @State private var createEventDefaultDate: Date = Date()
 
-    private enum WeekTab: String, CaseIterable {
-        case summary  = "Resumen"
-        case calendar = "Calendario"
+    private enum WeekTab: CaseIterable {
+        case summary, calendar
     }
 
     // Calendar grid layout constants
@@ -40,6 +33,13 @@ struct WeekView: View {
     private let calStartHour = 7
     private let calEndHour = 22
     private let calTimeWidth: CGFloat = 40
+
+    private var weekAbbrevFormatter: DateFormatter {
+        let f = DateFormatter()
+        f.locale = lang.locale
+        f.dateFormat = "EEEEE"
+        return f
+    }
 
     private var referenceDate: Date { Date().adding(weekOffset, .week) }
     private var interval: DateInterval { referenceDate.interval(of: .week) }
@@ -92,7 +92,8 @@ struct WeekView: View {
                     weekNavigator
 
                     Picker("", selection: $weekTab) {
-                        ForEach(WeekTab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        Text(lang["week.summary"]).tag(WeekTab.summary)
+                        Text(lang["week.calendar"]).tag(WeekTab.calendar)
                     }
                     .pickerStyle(.segmented)
 
@@ -111,7 +112,7 @@ struct WeekView: View {
                 .animation(.easeInOut(duration: 0.2), value: weekTab)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Semana")
+            .navigationTitle(lang["tab.week"])
             .toolbar {
                 if weekTab == .calendar && calendarService.isSignedIn && calendarService.hasWriteAccess {
                     ToolbarItem(placement: .primaryAction) {
@@ -155,9 +156,9 @@ struct WeekView: View {
             VStack(spacing: 2) {
                 Text(interval.shortRangeLabel).font(.headline)
                 if weekOffset == 0 {
-                    Text("Esta semana").font(.caption).foregroundStyle(.secondary)
+                    Text(lang["week.this_week"]).font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Button("Volver a hoy") { withAnimation { weekOffset = 0 } }
+                    Button(lang["week.back_to_today"]) { withAnimation { weekOffset = 0 } }
                         .font(.caption)
                 }
             }
@@ -182,7 +183,8 @@ struct WeekView: View {
                     fraction: maxDayHours > 0 ? h / maxDayHours : 0,
                     targetFraction: maxDayHours > 0 ? dailyTarget / maxDayHours : 0,
                     isToday: isToday, isSelected: isSel,
-                    breakdown: breakdownForDay(day)
+                    breakdown: breakdownForDay(day),
+                    locale: lang.locale
                 )
                 .onTapGesture {
                     withAnimation(.spring(duration: 0.3)) {
@@ -212,7 +214,7 @@ struct WeekView: View {
             }
 
             if selectedDayEntries.isEmpty {
-                Text("Sin registros para este día.")
+                Text(lang["week.no_records_day"])
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
@@ -224,7 +226,7 @@ struct WeekView: View {
                             size: 10
                         )
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(entry.project?.name ?? entry.client?.name ?? "Sin asignar")
+                            Text(entry.project?.name ?? entry.client?.name ?? lang["entries.unassigned"])
                                 .font(.subheadline)
                             if !entry.comment.isEmpty {
                                 Text(entry.comment)
@@ -254,10 +256,10 @@ struct WeekView: View {
 
     private var clientBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Por cliente / departamento")
+            Text(lang["dash.by_client"])
                 .font(.headline)
             if clientBreakdown.isEmpty {
-                Text("Aún no has registrado horas esta semana.")
+                Text(lang["dash.no_hours"])
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
@@ -279,7 +281,7 @@ struct WeekView: View {
         )
     }
 
-    // MARK: – Calendar tab: estados de conexión
+    // MARK: – Calendar tab
 
     @ViewBuilder
     private var calendarEventsSection: some View {
@@ -305,7 +307,7 @@ struct WeekView: View {
                 Button {
                     calendarService.signOut()
                 } label: {
-                    Label("Desconectar Google Calendar", systemImage: "person.slash")
+                    Label(lang["week.disconnect"], systemImage: "person.slash")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -319,9 +321,9 @@ struct WeekView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
             VStack(spacing: 6) {
-                Text("Conecta Google Calendar")
+                Text(lang["week.connect_google"])
                     .font(.headline)
-                Text("Visualiza tus eventos junto con tus horas de trabajo sin salir de la app.")
+                Text(lang["week.google_desc"])
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -337,7 +339,7 @@ struct WeekView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.badge.key.fill")
-                    Text("Conectar con Google")
+                    Text(lang["week.connect_google_btn"])
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -354,7 +356,7 @@ struct WeekView: View {
     private var calLoadingCard: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Cargando eventos…")
+            Text(lang["week.loading"])
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -365,15 +367,14 @@ struct WeekView: View {
         )
     }
 
-    // Banner que aparece cuando el usuario está conectado con permisos de solo lectura
     private var calWriteAccessBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "pencil.slash")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Solo lectura")
+                Text(lang["week.readonly"])
                     .font(.subheadline.weight(.medium))
-                Text("Amplía los permisos para crear y editar eventos.")
+                Text(lang["week.readonly_desc"])
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -381,7 +382,7 @@ struct WeekView: View {
             Button {
                 Task { await calendarService.requestWriteAccess() }
             } label: {
-                Text("Ampliar")
+                Text(lang["week.expand"])
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -431,14 +432,13 @@ struct WeekView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // Cabecera con nombres de día y número
     private var calDayHeaderRow: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: calTimeWidth)
             ForEach(days, id: \.self) { day in
                 let isToday = Calendar.app.isDateInToday(day)
                 VStack(spacing: 2) {
-                    Text(weekAbbrevFmt.string(from: day).uppercased())
+                    Text(weekAbbrevFormatter.string(from: day).uppercased())
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                     ZStack {
@@ -456,10 +456,9 @@ struct WeekView: View {
         }
     }
 
-    // Franja de eventos de todo el día
     private func calAllDayStrip(_ events: [CalendarEvent]) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            Text("Todo\nel día")
+            Text(lang["week.all_day_short"])
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
@@ -495,10 +494,8 @@ struct WeekView: View {
         .padding(.vertical, 6)
     }
 
-    // Cuadrícula horaria con eventos
     private var calTimeGrid: some View {
         ZStack(alignment: .topLeading) {
-            // Líneas de hora y etiquetas
             VStack(spacing: 0) {
                 ForEach(calStartHour..<calEndHour, id: \.self) { hour in
                     HStack(spacing: 0) {
@@ -517,7 +514,6 @@ struct WeekView: View {
                 }
             }
 
-            // Columnas de eventos por día
             HStack(alignment: .top, spacing: 0) {
                 Color.clear.frame(width: calTimeWidth)
                 ForEach(days, id: \.self) { day in
@@ -525,7 +521,6 @@ struct WeekView: View {
                 }
             }
 
-            // Indicador de hora actual (solo semana actual)
             if weekOffset == 0 {
                 calNowIndicator
             }
@@ -533,7 +528,6 @@ struct WeekView: View {
         .frame(height: CGFloat(calEndHour - calStartHour) * calHourHeight)
     }
 
-    // Columna de eventos de un día concreto
     private func calDayEventsColumn(_ day: Date) -> some View {
         let timedEvents = calendarService.events.filter {
             !$0.isAllDay && Calendar.app.isDate($0.start, inSameDayAs: day)
@@ -554,7 +548,6 @@ struct WeekView: View {
         .padding(.horizontal, 1)
     }
 
-    // Bloque visual de un evento (pulsable)
     private func calEventBlock(_ event: CalendarEvent, height: CGFloat) -> some View {
         Button {
             selectedCalendarEvent = event
@@ -580,7 +573,6 @@ struct WeekView: View {
         .buttonStyle(.plain)
     }
 
-    // Línea roja en la hora actual
     @ViewBuilder
     private var calNowIndicator: some View {
         let cal = Calendar.current
@@ -608,7 +600,7 @@ struct WeekView: View {
         }
     }
 
-    // MARK: – Helpers de calendario
+    // MARK: – Calendar helpers
 
     private func calEventTop(_ event: CalendarEvent) -> CGFloat {
         let cal = Calendar.current
@@ -641,10 +633,18 @@ private struct DayColumn: View {
     let isToday: Bool
     let isSelected: Bool
     let breakdown: [HoursBreakdown]
+    let locale: Locale
+
+    private var abbrevFmt: DateFormatter {
+        let f = DateFormatter()
+        f.locale = locale
+        f.dateFormat = "EEEEE"
+        return f
+    }
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(weekAbbrevFmt.string(from: day).uppercased())
+            Text(abbrevFmt.string(from: day).uppercased())
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
 
@@ -726,6 +726,7 @@ struct CalendarEventDetailView: View {
     let event: CalendarEvent
     @Environment(\.dismiss) private var dismiss
     @Environment(GoogleCalendarService.self) private var calendarService
+    @Environment(LanguageManager.self) private var lang
 
     @State private var showEditForm = false
     @State private var editSucceeded = false
@@ -754,7 +755,7 @@ struct CalendarEventDetailView: View {
                             Text(event.title)
                                 .font(.title3.weight(.semibold))
                             if event.isAllDay {
-                                Text("Todo el día")
+                                Text(lang["week.all_day"])
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             } else {
@@ -787,20 +788,20 @@ struct CalendarEventDetailView: View {
                         Button(role: .destructive) {
                             showDeleteConfirm = true
                         } label: {
-                            Label("Eliminar evento", systemImage: "trash")
+                            Label(lang["cal.delete"], systemImage: "trash")
                         }
                     }
                 }
             }
-            .navigationTitle("Detalle del evento")
+            .navigationTitle(lang["cal.detail"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") { dismiss() }
+                    Button(lang["cal.close"]) { dismiss() }
                 }
                 if calendarService.hasWriteAccess {
                     ToolbarItem(placement: .primaryAction) {
-                        Button("Editar") { showEditForm = true }
+                        Button(lang["cal.edit"]) { showEditForm = true }
                     }
                 }
             }
@@ -809,7 +810,7 @@ struct CalendarEventDetailView: View {
                 isPresented: $showDeleteConfirm,
                 titleVisibility: .visible
             ) {
-                Button("Eliminar", role: .destructive) {
+                Button(lang["form.delete"], role: .destructive) {
                     Task {
                         try? await calendarService.deleteEvent(id: event.id)
                         dismiss()
@@ -834,6 +835,7 @@ struct CalendarEventDetailView: View {
 struct CalendarEventFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(GoogleCalendarService.self) private var calendarService
+    @Environment(LanguageManager.self) private var lang
 
     let event: CalendarEvent?
     let defaultDate: Date
@@ -852,16 +854,16 @@ struct CalendarEventFormView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Título del evento", text: $title)
+                    TextField(lang["cal.title_placeholder"], text: $title)
                 }
 
                 Section {
-                    Toggle("Todo el día", isOn: $isAllDay.animation())
+                    Toggle(lang["week.all_day"], isOn: $isAllDay.animation())
                     if isAllDay {
-                        DatePicker("Fecha", selection: $startDate, displayedComponents: .date)
+                        DatePicker(lang["cal.date"], selection: $startDate, displayedComponents: .date)
                     } else {
-                        DatePicker("Inicio", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
-                        DatePicker("Fin", selection: $endDate, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker(lang["cal.start"], selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                        DatePicker(lang["cal.end"], selection: $endDate, displayedComponents: [.date, .hourAndMinute])
                     }
                 }
 
@@ -873,17 +875,17 @@ struct CalendarEventFormView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Editar evento" : "Nuevo evento")
+            .navigationTitle(isEditing ? lang["cal.edit_title"] : lang["cal.new"])
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button(lang["cal.cancel"]) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView().scaleEffect(0.8)
                     } else {
-                        Button(isEditing ? "Guardar" : "Crear") {
+                        Button(isEditing ? lang["cal.save"] : lang["cal.create"]) {
                             Task { await save() }
                         }
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -906,7 +908,6 @@ struct CalendarEventFormView: View {
             startDate = event.start
             endDate = event.end
         } else {
-            // Redondear al inicio de la siguiente hora
             let cal = Calendar.current
             var comps = cal.dateComponents([.year, .month, .day, .hour], from: defaultDate)
             comps.minute = 0
@@ -923,7 +924,6 @@ struct CalendarEventFormView: View {
         isSaving = true
         saveError = nil
 
-        // Para eventos de todo el día, end = start + 1 día
         let effectiveEnd: Date
         if isAllDay {
             effectiveEnd = Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? endDate
@@ -961,4 +961,5 @@ struct CalendarEventFormView: View {
     WeekView()
         .modelContainer(for: [Client.self, Project.self, TimeEntry.self, AppSettings.self], inMemory: true)
         .environment(GoogleCalendarService())
+        .environment(LanguageManager())
 }
