@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -23,10 +24,13 @@ struct Contador_de_horas_laboralLiveActivity: Widget {
                         .frame(maxWidth: 90)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    let subtitle = [context.state.clientName, context.state.projectName]
-                        .filter { !$0.isEmpty }.joined(separator: " · ")
-                    if !subtitle.isEmpty {
-                        Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    VStack(spacing: 6) {
+                        let subtitle = [context.state.clientName, context.state.projectName]
+                            .filter { !$0.isEmpty }.joined(separator: " · ")
+                        if !subtitle.isEmpty {
+                            Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                        }
+                        TimerControlButtons(isRunning: context.state.isRunning, compact: true)
                     }
                 }
             } compactLeading: {
@@ -49,36 +53,82 @@ private struct TimerLockScreenLiveView: View {
     let context: ActivityViewContext<TimerActivityAttributes>
 
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill").foregroundStyle(Color.accentColor)
-                    Text("Horas Laborales").font(.subheadline.weight(.medium))
+        VStack(spacing: 14) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.fill").foregroundStyle(Color.accentColor)
+                        Text("Horas Laborales").font(.subheadline.weight(.medium))
+                    }
+                    let subtitle = [context.state.clientName, context.state.projectName]
+                        .filter { !$0.isEmpty }.joined(separator: " · ")
+                    if !subtitle.isEmpty {
+                        Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
-                let subtitle = [context.state.clientName, context.state.projectName]
-                    .filter { !$0.isEmpty }.joined(separator: " · ")
-                if !subtitle.isEmpty {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
-                }
-            }
 
-            Spacer()
+                Spacer()
 
-            VStack(alignment: .trailing, spacing: 3) {
-                TimerLiveText(context: context)
-                    .font(.system(.title2, design: .monospaced).weight(.semibold))
+                VStack(alignment: .trailing, spacing: 3) {
+                    TimerLiveText(context: context)
+                        .font(.system(.title2, design: .monospaced).weight(.semibold))
 
-                HStack(spacing: 4) {
-                    if context.state.isRunning {
-                        Circle().fill(.red).frame(width: 6, height: 6)
-                        Text("EN CURSO").font(.caption2.weight(.medium)).foregroundStyle(.red)
-                    } else {
-                        Text("PAUSADO").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        if context.state.isRunning {
+                            Circle().fill(.red).frame(width: 6, height: 6)
+                            Text("EN CURSO").font(.caption2.weight(.medium)).foregroundStyle(.red)
+                        } else {
+                            Text("PAUSADO").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
+
+            TimerControlButtons(isRunning: context.state.isRunning, compact: false)
         }
         .padding(16)
+    }
+}
+
+// MARK: - Botones Play / Pausa / Reset
+
+/// Mismos controles que el cronómetro de la app: iniciar/pausar y reiniciar,
+/// pero ejecutados vía App Intents sin abrir la app.
+private struct TimerControlButtons: View {
+    let isRunning: Bool
+    let compact: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(intent: ResetTimerIntent()) {
+                buttonLabel("Reiniciar", systemImage: "xmark")
+            }
+            .tint(.secondary)
+
+            if isRunning {
+                Button(intent: PauseTimerIntent()) {
+                    buttonLabel("Pausar", systemImage: "pause.fill")
+                }
+                .tint(.red)
+            } else {
+                Button(intent: StartTimerIntent()) {
+                    buttonLabel("Reanudar", systemImage: "play.fill")
+                }
+            }
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .controlSize(compact ? .small : .regular)
+    }
+
+    @ViewBuilder
+    private func buttonLabel(_ title: String, systemImage: String) -> some View {
+        if compact {
+            Image(systemName: systemImage)
+        } else {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity)
+        }
     }
 }
 

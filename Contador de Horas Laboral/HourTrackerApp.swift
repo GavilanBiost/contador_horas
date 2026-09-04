@@ -3,77 +3,61 @@ import SwiftData
 #if canImport(GoogleSignIn)
 import GoogleSignIn
 #endif
-#if canImport(ActivityKit)
-import ActivityKit
-#endif
 
 // MARK: - TimerManager
 
-/// Estado compartido del cronómetro. Se persiste en UserDefaults para que
-/// siga contando aunque la app se cierre y se vuelva a abrir.
+/// Estado del cronómetro. Se apoya en `SharedTimerStore` (App Group) para que
+/// el widget, el Centro de Control y la Live Activity puedan iniciarlo, pausarlo
+/// o reiniciarlo aunque la app esté cerrada, y para que la app refleje esos
+/// cambios en cuanto vuelve a primer plano (ver `syncFromStore()`).
 @Observable
 final class TimerManager {
     private(set) var timerRunning = false
     var timerDisplayed: TimeInterval = 0
     var showingSaveTimer = false
 
-    private var base: TimeInterval = 0     // tiempo acumulado antes de la última pausa
-    private var startDate: Date?           // cuándo se inició la sesión actual
     private var ticker: Timer?
-    // Almacén genérico para Activity<TimerActivityAttributes> (evita restricciones de @available en stored props)
-    private var _liveActivity: Any?
-
-    private enum Keys {
-        static let start = "timer.start"
-        static let base  = "timer.base"
-    }
 
     init() {
-        base = UserDefaults.standard.double(forKey: Keys.base)
-        startDate = UserDefaults.standard.object(forKey: Keys.start) as? Date
+        syncFromStore()
+    }
 
-        if let start = startDate {
-            timerRunning = true
-            timerDisplayed = base + Date().timeIntervalSince(start)
+    /// Vuelve a leer el estado compartido. Se llama al reactivar la app, por si
+    /// el widget, el Control o la Live Activity cambiaron el cronómetro mientras
+    /// la app estaba en segundo plano.
+    func syncFromStore() {
+        timerRunning = SharedTimerStore.isRunning
+        timerDisplayed = SharedTimerStore.elapsed
+        if timerRunning {
             startTicking()
-            reconnectLiveActivity()
         } else {
-            timerDisplayed = base
+            stopTicking()
         }
     }
 
     func startTimer() {
-        let now = Date()
-        startDate = now
-        UserDefaults.standard.set(now, forKey: Keys.start)
+        SharedTimerStore.start()
         timerRunning = true
+        timerDisplayed = SharedTimerStore.elapsed
         startTicking()
-        updateLiveActivity(isRunning: true)
+        TimerLiveActivityController.start()
     }
 
     func pauseTimer() {
-        if let start = startDate {
-            base += Date().timeIntervalSince(start)
-        }
-        startDate = nil
+        SharedTimerStore.pause()
         timerRunning = false
-        timerDisplayed = base
-        UserDefaults.standard.set(base, forKey: Keys.base)
-        UserDefaults.standard.removeObject(forKey: Keys.start)
+        timerDisplayed = SharedTimerStore.elapsed
         stopTicking()
-        updateLiveActivity(isRunning: false)
+        TimerLiveActivityController.update(isRunning: false)
     }
 
     func resetTimer() {
         stopTicking()
-        startDate = nil
-        base = 0
+        SharedTimerStore.reset()
         timerRunning = false
         timerDisplayed = 0
         showingSaveTimer = false
-        UserDefaults.standard.removeObject(forKey: Keys.start)
-        UserDefaults.standard.removeObject(forKey: Keys.base)
-        endLiveActivity()
+        TimerLiveActivityController.end()
     }
 
     func formatTimer() -> String {
@@ -88,8 +72,7 @@ final class TimerManager {
     private func startTicking() {
         stopTicking()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self, let start = self.startDate else { return }
-            self.timerDisplayed = self.base + Date().timeIntervalSince(start)
+            self?.timerDisplayed = SharedTimerStore.elapsed
         }
         RunLoop.main.add(t, forMode: .common)
         ticker = t
@@ -98,64 +81,6 @@ final class TimerManager {
     private func stopTicking() {
         ticker?.invalidate()
         ticker = nil
-    }
-
-    // MARK: - Live Activity
-
-    @available(iOS 16.2, *)
-    private var currentActivity: Activity<TimerActivityAttributes>? {
-        get { _liveActivity as? Activity<TimerActivityAttributes> }
-        set { _liveActivity = newValue }
-    }
-
-    /// Reconecta a una Live Activity existente tras un relanzamiento de la app.
-    private func reconnectLiveActivity() {
-        guard #available(iOS 16.2, *) else { return }
-        currentActivity = Activity<TimerActivityAttributes>.activities.first
-    }
-
-    /// effectiveStartDate es la fecha desde la que Text(timerInterval:) muestra el tiempo total.
-    /// Matemática: now - effectiveStart = base + (now - startDate) = tiempo total transcurrido.
-    private func makeContentState(isRunning: Bool) -> TimerActivityAttributes.ContentState {
-        let effectiveStart: Date? = isRunning
-            ? startDate?.addingTimeInterval(-base)
-            : nil
-        return TimerActivityAttributes.ContentState(
-            effectiveStartDate: effectiveStart,
-            isRunning: isRunning,
-            pausedElapsed: base,
-            projectName: "",
-            clientName: ""
-        )
-    }
-
-    private func updateLiveActivity(isRunning: Bool) {
-        guard #available(iOS 16.2, *) else { return }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
-        let content = ActivityContent(state: makeContentState(isRunning: isRunning), staleDate: nil)
-
-        if let activity = currentActivity {
-            Task { await activity.update(content) }
-        } else if isRunning {
-            do {
-                currentActivity = try Activity.request(
-                    attributes: TimerActivityAttributes(),
-                    content: content
-                )
-            } catch {
-                print("Live Activity start error: \(error)")
-            }
-        }
-    }
-
-    private func endLiveActivity() {
-        guard #available(iOS 16.2, *) else { return }
-        guard let activity = currentActivity else { return }
-        Task {
-            await activity.end(nil, dismissalPolicy: .immediate)
-            currentActivity = nil
-        }
     }
 }
 
@@ -166,6 +91,7 @@ struct HourTrackerApp: App {
     let timerManager = TimerManager()
     let calendarService = GoogleCalendarService()
     let languageManager = LanguageManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     let container: ModelContainer = {
         let schema = Schema([Client.self, Project.self, TimeEntry.self, AppSettings.self])
@@ -201,5 +127,10 @@ struct HourTrackerApp: App {
         .environment(timerManager)
         .environment(calendarService)
         .environment(languageManager)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                timerManager.syncFromStore()
+            }
+        }
     }
 }
