@@ -17,14 +17,37 @@ final class TimerManager {
     var showingSaveTimer = false
 
     private var ticker: Timer?
+    private var storeObserver: NSObjectProtocol?
 
     init() {
         syncFromStore()
+
+        // Los botones del widget, la Live Activity y el Centro de Control son
+        // `LiveActivityIntent`, así que se ejecutan en el proceso de la app de
+        // forma asíncrona, a veces con la app ya en primer plano (o justo
+        // después de que la escena vuelva a estar activa). El cambio de
+        // `scenePhase` no basta para verlos: nos avisa el propio store.
+        SharedTimerStore.startObservingChanges()
+        storeObserver = NotificationCenter.default.addObserver(
+            forName: SharedTimerStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.syncFromStore()
+            }
+        }
     }
 
-    /// Vuelve a leer el estado compartido. Se llama al reactivar la app, por si
-    /// el widget, el Control o la Live Activity cambiaron el cronómetro mientras
-    /// la app estaba en segundo plano.
+    deinit {
+        if let storeObserver {
+            NotificationCenter.default.removeObserver(storeObserver)
+        }
+    }
+
+    /// Vuelve a leer el estado compartido. Se llama al reactivar la app y cada
+    /// vez que el store avisa de un cambio, por si el widget, el Control o la
+    /// Live Activity cambiaron el cronómetro.
     func syncFromStore() {
         timerRunning = SharedTimerStore.isRunning
         timerDisplayed = SharedTimerStore.elapsed
@@ -118,6 +141,12 @@ struct HourTrackerApp: App {
         WindowGroup {
             RootView()
                 .onOpenURL { url in
+                    if url.scheme == "contadorhoras" {
+                        if url.host == "guardar" {
+                            timerManager.showingSaveTimer = true
+                        }
+                        return
+                    }
 #if canImport(GoogleSignIn)
                     GIDSignIn.sharedInstance.handle(url)
 #endif
@@ -127,9 +156,12 @@ struct HourTrackerApp: App {
         .environment(timerManager)
         .environment(calendarService)
         .environment(languageManager)
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase, initial: true) { _, newPhase in
             if newPhase == .active {
                 timerManager.syncFromStore()
+                // Si la Live Activity desapareció (reinstalación, cierre forzado,
+                // caducidad) pero el cronómetro sigue con tiempo, se recrea.
+                TimerLiveActivityController.syncWithStore()
             }
         }
     }

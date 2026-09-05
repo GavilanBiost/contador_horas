@@ -30,7 +30,11 @@ struct Contador_de_horas_laboralLiveActivity: Widget {
                         if !subtitle.isEmpty {
                             Text(subtitle).font(.caption).foregroundStyle(.secondary)
                         }
-                        TimerControlButtons(isRunning: context.state.isRunning, compact: true)
+                        TimerControlButtons(
+                            isRunning: context.state.isRunning,
+                            elapsed: context.state.pausedElapsed,
+                            compact: true
+                        )
                     }
                 }
             } compactLeading: {
@@ -84,27 +88,30 @@ private struct TimerLockScreenLiveView: View {
                 }
             }
 
-            TimerControlButtons(isRunning: context.state.isRunning, compact: false)
+            TimerControlButtons(
+                isRunning: context.state.isRunning,
+                elapsed: context.state.pausedElapsed,
+                compact: false
+            )
         }
         .padding(16)
     }
 }
 
-// MARK: - Botones Play / Pausa / Reset
+// MARK: - Botones Play / Pausa / Guardar
 
-/// Mismos controles que el cronómetro de la app: iniciar/pausar y reiniciar,
-/// pero ejecutados vía App Intents sin abrir la app.
+/// Controles del cronómetro en el widget: pausar/reanudar y guardar.
+/// Pausar/reanudar se ejecutan vía App Intents sin abrir la app; guardar
+/// necesita el formulario completo (cliente, proyecto, notas), así que abre la
+/// app mediante un enlace y la deja lista en ese formulario. Reiniciar se hace
+/// desde la app.
 private struct TimerControlButtons: View {
     let isRunning: Bool
+    let elapsed: TimeInterval
     let compact: Bool
 
     var body: some View {
         HStack(spacing: 10) {
-            Button(intent: ResetTimerIntent()) {
-                buttonLabel("Reiniciar", systemImage: "xmark")
-            }
-            .tint(.secondary)
-
             if isRunning {
                 Button(intent: PauseTimerIntent()) {
                     buttonLabel("Pausar", systemImage: "pause.fill")
@@ -113,6 +120,13 @@ private struct TimerControlButtons: View {
             } else {
                 Button(intent: StartTimerIntent()) {
                     buttonLabel("Reanudar", systemImage: "play.fill")
+                }
+
+                if elapsed > 0 {
+                    Link(destination: URL(string: "contadorhoras://guardar")!) {
+                        buttonLabel("Guardar", systemImage: "checkmark")
+                    }
+                    .tint(.green)
                 }
             }
         }

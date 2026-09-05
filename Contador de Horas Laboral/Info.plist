@@ -26,6 +26,14 @@
                 <string>com.googleusercontent.apps.798645956367-vjo9e08hchh790kd494rgs27cjcj2dj1</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>GavilanBiost.Contador-de-Horas-Laboral</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>contadorhoras</string>
+            </array>
+        </dict>
     </array>
     <key>LSRequiresIPhoneOS</key>
     <true/>
