@@ -11,6 +11,12 @@ final class TimeEntry {
     /// Número de horas trabajadas (puede tener decimales: 1.5, 0.25, …).
     var hours: Double
 
+    /// Hora a la que empezó el trabajo registrado.
+    var startTime: Date = Date.now
+
+    /// Hora a la que terminó el trabajo registrado.
+    var endTime: Date = Date.now
+
     /// Comentario opcional.
     var comment: String
 
@@ -25,6 +31,8 @@ final class TimeEntry {
     init(
         date: Date = .now,
         hours: Double = 0,
+        startTime: Date = .now,
+        endTime: Date = .now,
         comment: String = "",
         client: Client? = nil,
         project: Project? = nil,
@@ -32,6 +40,8 @@ final class TimeEntry {
     ) {
         self.date = date
         self.hours = hours
+        self.startTime = startTime
+        self.endTime = endTime
         self.comment = comment
         self.client = client
         self.project = project

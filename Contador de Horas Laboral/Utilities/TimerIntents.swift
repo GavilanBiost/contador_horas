@@ -19,7 +19,7 @@ nonisolated struct StartTimerIntent: LiveActivityIntent {
     static var description = IntentDescription("Inicia el cronómetro de horas laborales.")
 
     func perform() async throws -> some IntentResult {
-        SharedTimerStore.start()
+        await MainActor.run { SharedTimerStore.start() }
         await TimerLiveActivityController.startAndWait()
         return .result()
     }
@@ -31,7 +31,7 @@ nonisolated struct PauseTimerIntent: LiveActivityIntent {
     static var description = IntentDescription("Pausa el cronómetro de horas laborales.")
 
     func perform() async throws -> some IntentResult {
-        SharedTimerStore.pause()
+        await MainActor.run { SharedTimerStore.pause() }
         await TimerLiveActivityController.updateAndWait(isRunning: false)
         return .result()
     }
@@ -42,7 +42,7 @@ nonisolated struct PauseTimerIntent: LiveActivityIntent {
 /// Enciende o apaga el cronómetro desde el widget de Centro de Control.
 /// También conforma `LiveActivityIntent` para que se ejecute en la app y pueda
 /// crear la Live Activity si todavía no existe.
-nonisolated struct ToggleTimerIntent: SetValueIntent, LiveActivityIntent {
+struct ToggleTimerIntent: SetValueIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Cronómetro"
 
     @Parameter(title: "En marcha")
@@ -56,10 +56,10 @@ nonisolated struct ToggleTimerIntent: SetValueIntent, LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         if value {
-            SharedTimerStore.start()
+            await MainActor.run { SharedTimerStore.start() }
             await TimerLiveActivityController.startAndWait()
         } else {
-            SharedTimerStore.pause()
+            await MainActor.run { SharedTimerStore.pause() }
             await TimerLiveActivityController.updateAndWait(isRunning: false)
         }
         return .result()

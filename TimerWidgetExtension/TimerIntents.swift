@@ -42,7 +42,7 @@ nonisolated struct PauseTimerIntent: LiveActivityIntent {
 /// Enciende o apaga el cronómetro desde el widget de Centro de Control.
 /// También conforma `LiveActivityIntent` para que se ejecute en la app y pueda
 /// crear la Live Activity si todavía no existe.
-nonisolated struct ToggleTimerIntent: SetValueIntent, LiveActivityIntent {
+struct ToggleTimerIntent: SetValueIntent, LiveActivityIntent {
     static let title: LocalizedStringResource = "Cronómetro"
 
     @Parameter(title: "En marcha")

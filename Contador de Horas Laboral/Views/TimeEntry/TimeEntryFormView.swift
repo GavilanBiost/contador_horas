@@ -203,9 +203,13 @@ struct TimeEntryFormView: View {
     }
 
     private func save() {
+        let start = date
+        let end = date.addingTimeInterval(totalHours * 3600)
         if let entry {
             entry.date = date
             entry.hours = totalHours
+            entry.startTime = start
+            entry.endTime = end
             entry.comment = comment
             entry.client = selectedClient
             entry.project = selectedProject
@@ -213,6 +217,8 @@ struct TimeEntryFormView: View {
             let new = TimeEntry(
                 date: date,
                 hours: totalHours,
+                startTime: start,
+                endTime: end,
                 comment: comment,
                 client: selectedClient ?? selectedProject?.clients.first,
                 project: selectedProject
